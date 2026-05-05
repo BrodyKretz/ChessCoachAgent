@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chess Coach Agent</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/chess.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- Nav -->
+  <nav class="site-nav" style="margin-bottom:0;">
+    <a href="/" class="nav-link active">♟ Coaching Session</a>
+    <a href="/practice" class="nav-link">Puzzles & Openings</a>
+    <a href="/play" class="nav-link">Play vs Coach King</a>
+    <a href="/reports" class="nav-link">Previous Reports</a>
+  </nav>
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header>
+    <h1>♟ CHESS COACH AGENT</h1>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="status-text" style="font-size:11px;color:#888;">Ready</span>
+      <div id="status-dot"></div>
+    </div>
+  </header>
+
+  <!-- ── Agent pipeline diagram ─────────────────────────────── -->
+  <div id="pipeline">
+
+    <!-- ANALYST -->
+    <div class="agent-node analyst" id="node-analyst">
+      <div class="face">( ◉_◉ )</div>
+      <div class="label">Analyst</div>
+      <div class="status-badge" id="badge-analyst">—</div>
+    </div>
+
+    <!-- Arrow 1 -->
+    <div class="pipe-arrow" id="arrow-analyst-coach">
+      <div class="arrow-line"></div>
+      <div class="arrow-head">▶</div>
+    </div>
+
+    <!-- COACH KING -->
+    <div class="agent-node coach" id="node-coach">
+      <div class="face">( ◕‿◕ )</div>
+      <div class="label">Coach King</div>
+      <div class="status-badge" id="badge-coach">—</div>
+    </div>
+
+    <!-- Arrow 2 -->
+    <div class="pipe-arrow" id="arrow-coach-critic">
+      <div class="arrow-line"></div>
+      <div class="arrow-head">▶</div>
+    </div>
+
+    <!-- CRITIC -->
+    <div class="agent-node critic" id="node-critic">
+      <div class="face">( ⊙▂⊙ )</div>
+      <div class="label">Critic</div>
+      <div class="status-badge" id="badge-critic">—</div>
+    </div>
+
+    <div class="feedback-label" id="feedback-label">↺ revising...</div>
+  </div>
+
+  <!-- ── Content area ───────────────────────────────────────── -->
+  <div id="content">
+
+    <!-- Left: live output -->
+    <div class="panel" id="output-panel">
+      <div class="panel-header">Live Output</div>
+      <div id="output-body"></div>
+    </div>
+
+    <!-- Right: debug + interaction -->
+    <div id="right-panel">
+
+      <!-- Debug window -->
+      <div class="panel" id="debug-panel">
+        <div class="panel-header">Debug Window</div>
+        <div id="debug-body"></div>
+      </div>
+
+      <!-- Interaction (setup form / question / complete) -->
+      <div class="panel" id="interaction-panel">
+        <div class="panel-header" id="interaction-header">Session Setup</div>
+        <div id="interaction-body">
+
+          <!-- Setup form (shown on load) -->
+          <form id="setup-form" onsubmit="startSession(event)">
+            <div class="form-row">
+              <label>Chess.com Username</label>
+              <input type="text" id="input-username" placeholder="e.g. JagerBombEnjoyer" required />
+            </div>
+            <div class="form-row">
+              <label>Games to Analyze</label>
+              <input type="number" id="input-games" value="10" min="1" max="50" />
+            </div>
+            <div class="form-row">
+              <label>Time Control</label>
+              <select id="input-tc">
+                <option value="all">All</option>
+                <option value="blitz" selected>Blitz</option>
+                <option value="bullet">Bullet</option>
+                <option value="rapid">Rapid</option>
+                <option value="daily">Daily</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary" id="start-btn">Start Session</button>
+          </form>
+
+          <!-- Question card (shown during coach interview) -->
+          <div id="question-card">
+            <div class="coach-question-header">
+              <span class="crown">♟</span>
+              <span>Coach King</span>
+            </div>
+            <div id="question-text"></div>
+            <div id="question-options"></div>
+            <textarea id="answer-input" placeholder="Type your answer..."></textarea>
+            <button class="btn btn-primary" onclick="submitAnswer()">Submit</button>
+          </div>
+
+          <!-- Complete card -->
+          <div id="complete-card">
+            <div class="complete-msg">✓ Your coaching report is ready!</div>
+            <button class="btn btn-primary" onclick="downloadPdf()">Download PDF</button>
+            <button class="btn btn-secondary" onclick="resetSession()">New Session</button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

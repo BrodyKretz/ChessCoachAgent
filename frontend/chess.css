@@ -1,0 +1,318 @@
+/* ── Nav ────────────────────────────────────────────────────── */
+.site-nav {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 4px;
+}
+
+.nav-link {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.nav-link:hover  { color: var(--text); background: var(--surface2); }
+.nav-link.active { color: var(--coach-color); background: color-mix(in srgb, var(--coach-color) 12%, transparent); }
+
+/* ── Chess board grid ───────────────────────────────────────── */
+.chess-board {
+  display: grid;
+  grid-template-columns: repeat(8, 64px);
+  grid-template-rows:    repeat(8, 64px);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.chess-board.mini {
+  grid-template-columns: repeat(8, 36px);
+  grid-template-rows:    repeat(8, 36px);
+}
+
+/* ── Squares ────────────────────────────────────────────────── */
+.chess-square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;   /* required for ::after highlight overlays */
+}
+
+.chess-board.mini .chess-square { cursor: default; }
+
+.chess-square.light { background: #f0d9b5; }
+.chess-square.dark  { background: #b58863; }
+
+/* ── Piece sprites ──────────────────────────────────────────── */
+.chess-square img {
+  width: 88%;
+  height: 88%;
+  display: block;
+  pointer-events: none;   /* clicks hit the square, not the image */
+  user-select: none;
+}
+
+/* ── Selected piece highlight (Chess.com green-yellow) ──────── */
+.chess-square.sel { background: #829769 !important; }
+.chess-square.light.sel { background: #cdd16e !important; }
+
+/* ── Legal-move dot (empty destination) ─────────────────────── */
+.chess-square.legal::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32%;
+  height: 32%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.20);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Legal-capture ring (destination has an enemy piece) ─────── */
+.chess-square.legal-cap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 5px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Last-move / analysis highlights ───────────────────────── */
+.chess-square.hl-from    { background: rgba(246,246,105,0.55) !important; }
+.chess-square.hl-to      { background: rgba(246,246,105,0.55) !important; }
+.chess-square.hl-mistake { background: rgba(208,91,91,0.50)   !important; }
+.chess-square.hl-better  { background: rgba(76,175,125,0.45)  !important; }
+
+/* ── Game status ────────────────────────────────────────────── */
+.game-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  padding: 6px 0;
+  text-align: center;
+}
+
+/* ── Move entry in log ──────────────────────────────────────── */
+.move-entry {
+  padding: 3px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  color: var(--text-dim);
+}
+.move-entry:last-child { border-bottom: none; color: var(--text); }
+
+/* ── Mistake badge ──────────────────────────────────────────── */
+.mistake-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.mistake-badge.blunder    { background: rgba(208,91,91,0.25);  color: #e07070; border: 1px solid #d05b5b; }
+.mistake-badge.mistake    { background: rgba(230,150,60,0.25); color: #e09660; border: 1px solid #d07030; }
+.mistake-badge.inaccuracy { background: rgba(201,168,76,0.25); color: #c9a84c; border: 1px solid #a08030; }
+
+/* ── Mistake slide-up panel ─────────────────────────────────── */
+#mistake-panel {
+  position: fixed;
+  bottom: -100%;
+  left: 0; right: 0;
+  background: var(--surface);
+  border-top: 2px solid var(--critic-color);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+  padding: 16px 24px;
+  z-index: 100;
+  transition: bottom 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+#mistake-panel.visible { bottom: 0; }
+
+.mistake-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Practice page tabs ─────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  background: var(--surface2);
+}
+
+.tab-btn {
+  padding: 10px 18px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -1px;
+}
+
+.tab-btn:hover  { color: var(--text); }
+.tab-btn.active { color: var(--coach-color); border-bottom-color: var(--coach-color); }
+
+/* ── Puzzle cards ───────────────────────────────────────────── */
+.puzzle-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  transition: border-color 0.2s;
+}
+
+.puzzle-card.solved { border-color: var(--success-color); }
+.puzzle-card.failed { border-color: var(--critic-color); }
+
+.puzzle-info { flex: 1; min-width: 200px; }
+
+.puzzle-theme {
+  display: inline-block;
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--coach-color) 15%, transparent);
+  color: var(--coach-color);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.puzzle-turn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.puzzle-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.puzzle-feedback {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  display: none;
+}
+
+.puzzle-feedback.visible         { display: block; }
+.puzzle-feedback.correct         { background: rgba(76,175,125,0.15); color: var(--success-color); border: 1px solid rgba(76,175,125,0.3); }
+.puzzle-feedback.wrong           { background: rgba(208,91,91,0.12);  color: #e07070;              border: 1px solid rgba(208,91,91,0.3); }
+.puzzle-feedback.revealed        { background: rgba(201,168,76,0.12); color: var(--coach-color);   border: 1px solid rgba(201,168,76,0.3); }
+
+.puzzle-tries {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+/* ── Opening lines ──────────────────────────────────────────── */
+.opening-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.opening-header {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.opening-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.opening-color-pill {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.opening-color-pill.white { background: rgba(255,255,255,0.1); color: #ddd; }
+.opening-color-pill.black { background: rgba(0,0,0,0.3);       color: #aaa; border: 1px solid #444; }
+
+.opening-body { padding: 14px 16px; }
+
+.opening-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.opening-move-chip {
+  padding: 3px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+  cursor: default;
+  transition: border-color 0.15s;
+}
+
+.opening-description { font-size: 12px; line-height: 1.6; color: var(--text-dim); margin-bottom: 6px; }
+.opening-key-ideas   { font-size: 12px; color: var(--coach-color); font-style: italic; }
+
+/* ── Loading spinner ────────────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--coach-color);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Practice — Chess Coach</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/chess.css" />
+  <style>
+    html, body { overflow: auto; height: auto; }
+    #app { display: block; height: auto; }
+  </style>
+</head>
+<body>
+<div id="app" style="overflow:auto;min-height:100vh;">
+
+  <!-- Nav -->
+  <nav class="site-nav">
+    <a href="/" class="nav-link">♟ Coaching Session</a>
+    <a href="/practice" class="nav-link active">Puzzles & Openings</a>
+    <a href="/play" class="nav-link">Play vs Coach King</a>
+    <a href="/reports" class="nav-link">Previous Reports</a>
+  </nav>
+
+  <!-- Username bar -->
+  <div style="max-width:860px;margin:16px auto 0;padding:0 16px;">
+    <div class="panel" style="flex-direction:row;align-items:center;gap:12px;padding:12px 16px;">
+      <label style="font-size:12px;color:var(--text-dim);white-space:nowrap;">Chess.com username</label>
+      <input type="text" id="username-input" placeholder="JagerBombEnjoyer" style="max-width:220px;" />
+      <button class="btn btn-primary" onclick="loadAll()" id="load-btn">Load Practice</button>
+      <span id="load-status" style="font-size:12px;color:var(--text-dim);"></span>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div style="max-width:860px;margin:12px auto 0;padding:0 16px;">
+    <div class="panel" style="gap:0;">
+
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tab-puzzles"   onclick="switchTab('puzzles')">Tactics Puzzles</button>
+        <button class="tab-btn"        id="tab-openings"  onclick="switchTab('openings')">Opening Trainer</button>
+      </div>
+
+      <!-- Puzzles tab -->
+      <div id="pane-puzzles" style="padding:16px;display:flex;flex-direction:column;gap:16px;">
+
+        <div id="puzzles-loading" style="display:none;padding:20px 0;text-align:center;color:var(--text-dim);">
+          <span class="spinner"></span> Generating puzzles tailored to your level…
+        </div>
+
+        <div id="puzzles-empty" style="padding:30px 0;text-align:center;color:var(--text-dim);font-style:italic;">
+          Enter your username above and click Load Practice to get started.
+        </div>
+
+        <div id="puzzles-list" style="display:flex;flex-direction:column;gap:14px;"></div>
+
+      </div>
+
+      <!-- Openings tab -->
+      <div id="pane-openings" style="padding:16px;display:none;flex-direction:column;gap:14px;">
+
+        <div id="openings-loading" style="display:none;padding:20px 0;text-align:center;color:var(--text-dim);">
+          <span class="spinner"></span> Building opening lines from your preferences…
+        </div>
+
+        <div id="openings-empty" style="padding:30px 0;text-align:center;color:var(--text-dim);font-style:italic;">
+          Enter your username above and click Load Practice to get started.
+        </div>
+
+        <div id="openings-list" style="display:flex;flex-direction:column;gap:14px;"></div>
+
+        <!-- Opening board viewer -->
+        <div id="opening-viewer" style="display:none;gap:20px;align-items:flex-start;flex-direction:row;">
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+            <div id="opening-board"></div>
+            <div id="opening-step-label" style="font-size:11px;color:var(--text-dim);font-family:monospace;min-height:16px;"></div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-secondary" style="padding:4px 12px;" id="op-prev" onclick="opPrev()">←</button>
+              <button class="btn btn-secondary" style="padding:4px 12px;" id="op-next" onclick="opNext()">→</button>
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div id="opening-viewer-title" style="font-size:14px;font-weight:700;margin-bottom:8px;color:var(--coach-color);"></div>
+            <div id="opening-viewer-desc"  style="font-size:13px;line-height:1.6;color:var(--text-dim);margin-bottom:8px;"></div>
+            <div id="opening-viewer-ideas" style="font-size:13px;color:var(--coach-color);font-style:italic;"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script src="/static/chess_utils.js"></script>
+<script src="/static/practice.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+V3.0
+-----
+Play vs Coach King + Practice mode. New /play page: full interactive chess
+game against a Claude-powered opponent with 4 difficulty levels and 4
+coaching assistance levels. After each player mistake Coach King slides up
+a panel explaining the error, showing the move sequence on a mini board
+with prev/next navigation and "your move vs better move" tabs.
+New /practice page: Claude-generated tactics puzzles (SAN answer checker,
+per-puzzle mini board) and opening trainer (server-pre-computed FEN
+sequences, board viewer with step navigation). Navigation bar links all
+three pages. chess.css handles board rendering, highlights, and slide-up
+mistake panel animation across the whole site.
+
+V2.0
+-----
+Custom web UI with live agent visualization. FastAPI + WebSocket backend
+serves a dark chess-themed frontend. Three agent nodes light up as they
+become active. Arrows animate when data flows between nodes. Debug window
+shows plain-English status in real time. Coach King's interview moves into
+the browser with Web Speech API voice. CLI mode (main.py) still works.
+
+V1.0
+-----
+Initial release. Core three-agent pipeline (Analyst → Coach → Critic).
+Features: Chess.com integration, SQLite user memory, PGN parsing with
+time-pressure detection, personalized coaching reports, PDF output,
+Coach King character with macOS voice.

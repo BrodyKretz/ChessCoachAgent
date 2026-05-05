@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Previous Reports — Chess Coach</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/chess.css" />
+  <style>
+    html, body { overflow: auto; height: auto; }
+    #app       { display: block; height: auto; }
+
+    /* ── Two-column layout ── */
+    #reports-layout {
+      display: flex;
+      gap: 16px;
+      max-width: 1100px;
+      margin: 16px auto 0;
+      padding: 0 16px 40px;
+      align-items: flex-start;
+    }
+
+    /* ── Report list sidebar ── */
+    #report-list {
+      width: 260px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .report-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .report-item:hover   { border-color: var(--coach-color); }
+    .report-item.active  {
+      border-color: var(--coach-color);
+      background: color-mix(in srgb, var(--coach-color) 8%, var(--surface));
+    }
+
+    .report-item-user {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .report-item-date {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .report-item-meta {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* ── Report viewer ── */
+    #report-viewer {
+      flex: 1;
+      min-width: 0;
+    }
+
+    #report-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #report-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dim);
+    }
+
+    #report-body {
+      padding: 24px 28px;
+      overflow-y: auto;
+      line-height: 1.7;
+    }
+
+    /* ── Rendered markdown styles ── */
+    #report-body h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--coach-color);
+      margin: 0 0 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #report-body h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 20px 0 6px;
+    }
+
+    #report-body h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dim);
+      margin: 14px 0 4px;
+    }
+
+    #report-body p {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    #report-body ul {
+      margin: 0 0 10px 20px;
+      padding: 0;
+    }
+
+    #report-body li {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    #report-body strong { color: var(--text); font-weight: 700; }
+    #report-body em     { color: var(--text-dim); font-style: italic; }
+
+    #report-body code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--coach-color);
+      background: color-mix(in srgb, var(--coach-color) 10%, transparent);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    #report-body hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+
+    #report-body .section-block {
+      margin-bottom: 24px;
+    }
+
+    /* Empty state */
+    #report-empty {
+      padding: 48px 0;
+      text-align: center;
+      color: var(--text-dim);
+      font-style: italic;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <nav class="site-nav">
+    <a href="/"         class="nav-link">♟ Coaching Session</a>
+    <a href="/practice" class="nav-link">Puzzles &amp; Openings</a>
+    <a href="/play"     class="nav-link">Play vs Coach King</a>
+    <a href="/reports"  class="nav-link active">Previous Reports</a>
+  </nav>
+
+  <div id="reports-layout">
+
+    <!-- ── Sidebar: report list ── -->
+    <div id="report-list">
+      <div class="panel-header" style="border-radius:var(--radius) var(--radius) 0 0;margin-bottom:0;">
+        Saved Reports
+      </div>
+      <div id="list-body" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;"></div>
+      <div id="list-empty" style="font-size:12px;color:var(--text-dim);padding:16px 4px;display:none;">
+        No reports found. Run a coaching session to generate one.
+      </div>
+    </div>
+
+    <!-- ── Main: report viewer ── -->
+    <div id="report-viewer" class="panel">
+      <div id="report-toolbar">
+        <span id="report-title">Select a report to view it</span>
+        <div style="display:flex;gap:8px;" id="report-actions" style="display:none;">
+          <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="downloadReport()">
+            Download PDF
+          </button>
+        </div>
+      </div>
+      <div id="report-body">
+        <div id="report-empty">
+          Select a report from the list on the left.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="/static/reports.js"></script>
+</body>
+</html>

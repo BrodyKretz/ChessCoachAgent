@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Play vs Coach King</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/chess.css" />
+  <style>
+    html, body { overflow: auto; height: auto; }
+    #app { display: block; height: auto; }
+  </style>
+</head>
+<body>
+<div id="app" style="overflow:auto;">
+
+  <!-- Nav -->
+  <nav class="site-nav">
+    <a href="/" class="nav-link">♟ Coaching Session</a>
+    <a href="/practice" class="nav-link">Puzzles & Openings</a>
+    <a href="/play" class="nav-link active">Play vs Coach King</a>
+    <a href="/reports" class="nav-link">Previous Reports</a>
+  </nav>
+
+  <!-- Setup panel -->
+  <div id="setup-panel" class="panel" style="max-width:520px;margin:24px auto;">
+    <div class="panel-header">New Game vs Coach King</div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+
+      <div class="form-row">
+        <label>Your Chess.com username (for saved preferences)</label>
+        <input type="text" id="username-input" placeholder="JagerBombEnjoyer" />
+      </div>
+
+      <div class="form-row">
+        <label>Play as</label>
+        <div class="radio-group">
+          <label><input type="radio" name="color" value="white" checked /> White</label>
+          <label><input type="radio" name="color" value="black" /> Black</label>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Coach Difficulty</label>
+        <div class="radio-group">
+          <label><input type="radio" name="diff" value="easy" /> Easy</label>
+          <label><input type="radio" name="diff" value="medium" checked /> Medium</label>
+          <label><input type="radio" name="diff" value="hard" /> Hard</label>
+          <label><input type="radio" name="diff" value="expert" /> Expert</label>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Coaching Assistance</label>
+        <div class="radio-group">
+          <label><input type="radio" name="coach" value="off" /> Off</label>
+          <label><input type="radio" name="coach" value="low" /> Low (blunders only)</label>
+          <label><input type="radio" name="coach" value="medium" checked /> Medium</label>
+          <label><input type="radio" name="coach" value="high" /> High (all mistakes)</label>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="startGame()">Start Game</button>
+    </div>
+  </div>
+
+  <!-- Game panel (hidden until game starts) -->
+  <div id="game-panel" style="display:none;gap:16px;padding:16px;max-width:1100px;margin:0 auto;flex-direction:row;">
+
+    <!-- Left: board + controls -->
+    <div style="display:flex;flex-direction:column;gap:10px;align-items:center;">
+      <div id="game-status" class="game-status">Waiting for game...</div>
+      <div id="main-board"></div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" onclick="resign()" id="resign-btn">Resign</button>
+        <button class="btn btn-secondary" onclick="flipBoard()">Flip Board</button>
+      </div>
+    </div>
+
+    <!-- Right: coach + move log -->
+    <div style="display:flex;flex-direction:column;gap:12px;flex:1;min-width:240px;">
+      <div class="panel">
+        <div class="panel-header">Coach King</div>
+        <div style="padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="font-family:monospace;font-size:20px;color:var(--coach-color);">( ◕‿◕ )</div>
+          <div id="coach-comment" style="font-size:13px;color:var(--text);text-align:center;min-height:40px;">Let's play!</div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1;">
+        <div class="panel-header">Move Log</div>
+        <div id="move-log" style="padding:10px;font-family:monospace;font-size:12px;overflow-y:auto;max-height:300px;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Mistake side panel (slides up) -->
+  <div id="mistake-panel">
+    <div class="mistake-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:18px;color:var(--coach-color);">♟</span>
+        <span style="font-weight:700;">Coach King</span>
+        <span id="mistake-badge" class="mistake-badge"></span>
+      </div>
+      <button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="closeMistakePanel()">Minimize ↓</button>
+    </div>
+
+    <div style="display:flex;gap:20px;align-items:flex-start;">
+
+      <!-- Mini board + sequence navigation -->
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+        <div id="side-board"></div>
+        <div id="side-step-label" style="font-size:11px;color:var(--text-dim);font-family:monospace;"></div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary" style="padding:4px 12px;" id="btn-prev" onclick="seqPrev()">←</button>
+          <button class="btn btn-secondary" style="padding:4px 12px;" id="btn-next" onclick="seqNext()">→</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:4px;">
+          <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" id="tab-your"   onclick="loadSeq('your')">What you played</button>
+          <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" id="tab-better" onclick="loadSeq('better')">Better move</button>
+        </div>
+      </div>
+
+      <!-- Explanation -->
+      <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
+        <div id="mistake-your-move"   style="font-size:13px;font-weight:600;color:var(--critic-color);"></div>
+        <div id="mistake-explanation" style="font-size:13px;line-height:1.6;"></div>
+        <div id="mistake-better-move" style="font-size:13px;color:var(--success-color);"></div>
+        <button class="btn btn-primary" style="align-self:flex-start;margin-top:4px;" onclick="closeMistakePanel()">Got it — Continue ✓</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/static/chess_utils.js"></script>
+<script src="/static/play.js"></script>
+</body>
+</html>
