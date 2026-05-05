@@ -25,12 +25,22 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 BASE_DIR = Path(__file__).parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 
+class RemoveFrameOptionsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers.pop("X-Frame-Options", None)
+        response.headers["Content-Security-Policy"] = "frame-ancestors *"
+        return response
+
+
 app = FastAPI(title="Chess Coach Agent")
+app.add_middleware(RemoveFrameOptionsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
