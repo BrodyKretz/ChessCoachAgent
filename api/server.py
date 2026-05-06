@@ -34,7 +34,10 @@ OUTPUTS_DIR = BASE_DIR / "outputs"
 class RemoveFrameOptionsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
-        response.headers.pop("X-Frame-Options", None)
+        try:
+            del response.headers["X-Frame-Options"]
+        except KeyError:
+            pass
         response.headers["Content-Security-Policy"] = "frame-ancestors *"
         return response
 
