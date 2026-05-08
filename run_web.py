@@ -4,16 +4,10 @@ Then open http://localhost:8000 in your browser.
 """
 import os
 import sys
-from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
 
-# Generate teaching guide on first run
-if not Path("TEACHING_GUIDE.pdf").exists():
-    from utils.pdf_generator import generate_teaching_guide
-    print("Generating TEACHING_GUIDE.pdf...")
-    generate_teaching_guide()
+load_dotenv()
 
 if not os.getenv("ANTHROPIC_API_KEY"):
     print("\nERROR: ANTHROPIC_API_KEY not set. Copy .env.example to .env and add your key.\n")

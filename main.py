@@ -15,12 +15,6 @@ def main():
         print("Copy .env.example to .env and add your API key.\n")
         sys.exit(1)
 
-    # Generate teaching guide on first run
-    if not os.path.exists("TEACHING_GUIDE.pdf"):
-        from utils.pdf_generator import generate_teaching_guide
-        print("First run detected — generating TEACHING_GUIDE.pdf...")
-        generate_teaching_guide()
-
     from graph.pipeline import run_coaching_session
     run_coaching_session()
 
