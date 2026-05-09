@@ -21,7 +21,7 @@
 }
 
 .nav-link:hover  { color: var(--text); background: var(--surface2); }
-.nav-link.active { color: var(--coach-color); background: color-mix(in srgb, var(--coach-color) 12%, transparent); }
+.nav-link.active { color: var(--accent); background: var(--accent-dim); }
 
 /* ── Chess board grid ───────────────────────────────────────── */
 .chess-board {
@@ -179,7 +179,7 @@
 }
 
 .tab-btn:hover  { color: var(--text); }
-.tab-btn.active { color: var(--coach-color); border-bottom-color: var(--coach-color); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* ── Puzzle cards ───────────────────────────────────────────── */
 .puzzle-card {
@@ -202,8 +202,8 @@
 .puzzle-theme {
   display: inline-block;
   padding: 2px 8px;
-  background: color-mix(in srgb, var(--coach-color) 15%, transparent);
-  color: var(--coach-color);
+  background: var(--accent-dim);
+  color: var(--accent);
   border-radius: 4px;
   font-size: 10px;
   font-weight: 700;
@@ -237,7 +237,7 @@
 .puzzle-feedback.visible         { display: block; }
 .puzzle-feedback.correct         { background: rgba(76,175,125,0.15); color: var(--success-color); border: 1px solid rgba(76,175,125,0.3); }
 .puzzle-feedback.wrong           { background: rgba(208,91,91,0.12);  color: #e07070;              border: 1px solid rgba(208,91,91,0.3); }
-.puzzle-feedback.revealed        { background: rgba(201,168,76,0.12); color: var(--coach-color);   border: 1px solid rgba(201,168,76,0.3); }
+.puzzle-feedback.revealed        { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(90,144,200,0.3); }
 
 .puzzle-tries {
   font-size: 11px;
@@ -301,14 +301,14 @@
 }
 
 .opening-description { font-size: 12px; line-height: 1.6; color: var(--text-dim); margin-bottom: 6px; }
-.opening-key-ideas   { font-size: 12px; color: var(--coach-color); font-style: italic; }
+.opening-key-ideas   { font-size: 12px; color: var(--accent); font-style: italic; }
 
 /* ── Loading spinner ────────────────────────────────────────── */
 .spinner {
   display: inline-block;
   width: 20px; height: 20px;
   border: 2px solid var(--border);
-  border-top-color: var(--coach-color);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   vertical-align: middle;
