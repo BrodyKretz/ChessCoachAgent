@@ -171,7 +171,7 @@ function showQuestion(id, question, options) {
 
 function submitAnswer() {
   const val = document.getElementById('answer-input').value.trim();
-  if (!val || !ws) return;
+  if (!ws) return;
 
   ws.send(JSON.stringify({ type: 'answer', id: currentQuestionId, value: val }));
   addDebug('▶', `Your answer: "${val}"`);
