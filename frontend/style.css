@@ -2,27 +2,32 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #0b0b12;
-  --surface:   #13131f;
-  --surface2:  #1a1a2e;
-  --border:    #2a2a44;
+  --bg:        #111318;
+  --surface:   #1c2028;
+  --surface2:  #242b35;
+  --border:    #2e3848;
 
-  --analyst-color:  #5b9bd5;
-  --coach-color:    #c9a84c;
-  --critic-color:   #d05b5b;
-  --neutral-color:  #888;
-  --success-color:  #4caf7d;
-  --debug-green:    #39ff6e;
+  --analyst-color:  #7aaad4;
+  --coach-color:    #c0a060;
+  --critic-color:   #c05868;
+  --neutral-color:  #6878a0;
+  --success-color:  #50b890;
+  --debug-green:    #40cc90;
 
-  --text:      #e8e8f0;
-  --text-dim:  #888899;
+  --text:      #e8ecf4;
+  --text-dim:  #7888a8;
   --radius:    10px;
   --font-mono: 'Courier New', Courier, monospace;
 }
 
 html, body {
   height: 100%;
-  background: var(--bg);
+  background-color: var(--bg);
+  /* subtle chess board texture */
+  background-image: repeating-conic-gradient(
+    rgba(255,255,255,0.018) 0% 25%, transparent 0% 50%
+  );
+  background-size: 48px 48px;
   color: var(--text);
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 14px;
@@ -225,6 +230,7 @@ header h1 {
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
+  border-top: 2px solid rgba(192, 160, 96, 0.25);
   border-radius: var(--radius);
   display: flex;
   flex-direction: column;
