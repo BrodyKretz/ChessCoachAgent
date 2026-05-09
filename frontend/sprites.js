@@ -219,8 +219,8 @@ function buildSVGElement(agent, state) {
 
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('width',  String(W * 4));
-  svg.setAttribute('height', String(H * 4));
+  svg.setAttribute('width',  String(W * 5));
+  svg.setAttribute('height', String(H * 5));
   svg.style.imageRendering = 'pixelated';
   svg.style.display = 'none';
 
