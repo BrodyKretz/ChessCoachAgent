@@ -1,6 +1,11 @@
 // Pixel-art character sprites: Witch (Analyst), Wizard (Coach), Old Man (Critic)
 // Each sprite is a 12x16 pixel grid rendered as SVG at 4x scale (48x64 px).
 // States: idle | talking | thinking
+//
+// Animation behaviours:
+//   idle    — random blink every 3-7 s (briefly show squint frame)
+//   talking — mouth toggles open/closed at ~4 fps
+//   thinking — eyes alternate squint/normal every 1.1 s
 
 (function () {
 
@@ -30,7 +35,6 @@ const PALS = {
 
 const FRAMES = {
 
-  // ── Witch (Analyst) ─────────────────────────────────────────
   analyst: {
     idle: [
       '.....k......',
@@ -88,7 +92,6 @@ const FRAMES = {
     ],
   },
 
-  // ── Wizard (Coach King) ──────────────────────────────────────
   coach: {
     idle: [
       '.....*......',
@@ -146,7 +149,6 @@ const FRAMES = {
     ],
   },
 
-  // ── Old Man (Critic) ─────────────────────────────────────────
   critic: {
     idle: [
       'WW........WW',
@@ -205,6 +207,8 @@ const FRAMES = {
   },
 };
 
+// ── SVG construction ───────────────────────────────────────────
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function buildSVGElement(agent, state) {
@@ -218,7 +222,7 @@ function buildSVGElement(agent, state) {
   svg.setAttribute('width',  String(W * 4));
   svg.setAttribute('height', String(H * 4));
   svg.style.imageRendering = 'pixelated';
-  svg.style.display = 'block';
+  svg.style.display = 'none';
 
   for (let y = 0; y < H; y++) {
     const row = rows[y];
@@ -238,24 +242,97 @@ function buildSVGElement(agent, state) {
   return svg;
 }
 
-function renderSprite(agent, state) {
-  const el = document.getElementById(`sprite-${agent}`);
-  if (!el) return;
-  el.textContent = '';
-  el.appendChild(buildSVGElement(agent, state));
+// ── Frame cache (pre-built SVG elements, toggled via display) ──
+
+const cache = {};   // cache[agent][state] = SVGElement
+
+function preloadAll() {
+  ['analyst', 'coach', 'critic'].forEach(agent => {
+    cache[agent] = {};
+    ['idle', 'talking', 'thinking'].forEach(state => {
+      cache[agent][state] = buildSVGElement(agent, state);
+    });
+  });
 }
 
-const currentStates = { analyst: 'idle', coach: 'idle', critic: 'idle' };
+function showFrame(agent, state) {
+  const el = document.getElementById(`sprite-${agent}`);
+  if (!el || !cache[agent]) return;
+
+  if (!el._loaded) {
+    el.textContent = '';
+    Object.values(cache[agent]).forEach(svg => el.appendChild(svg));
+    el._loaded = true;
+  }
+
+  Object.entries(cache[agent]).forEach(([s, svg]) => {
+    svg.style.display = s === state ? 'block' : 'none';
+  });
+}
+
+// ── Animation engine ───────────────────────────────────────────
+
+const anim = {};  // anim[agent] = { behavior, interval, timeout }
+
+function setBehavior(agent, behavior) {
+  const s = anim[agent] || (anim[agent] = {});
+  clearInterval(s.interval); s.interval = null;
+  clearTimeout(s.timeout);   s.timeout  = null;
+  s.behavior = behavior;
+
+  if (behavior === 'talking') {
+    // Toggle mouth open/closed at ~4 fps
+    let alt = false;
+    showFrame(agent, 'talking');
+    s.interval = setInterval(() => {
+      showFrame(agent, alt ? 'idle' : 'talking');
+      alt = !alt;
+    }, 220);
+
+  } else if (behavior === 'thinking') {
+    // Squint eyes slowly, like deep focus
+    let alt = false;
+    showFrame(agent, 'thinking');
+    s.interval = setInterval(() => {
+      showFrame(agent, alt ? 'idle' : 'thinking');
+      alt = !alt;
+    }, 1100);
+
+  } else {
+    // Idle: show normal frame and schedule random blinks
+    showFrame(agent, 'idle');
+    scheduleBlink(agent);
+  }
+}
+
+function scheduleBlink(agent) {
+  const s = anim[agent];
+  if (!s) return;
+  const delay = 3000 + Math.random() * 5000;
+  s.timeout = setTimeout(() => {
+    if (s.behavior !== 'idle') return;
+    showFrame(agent, 'thinking');          // squint = blink
+    setTimeout(() => {
+      if (s.behavior === 'idle') {
+        showFrame(agent, 'idle');
+        scheduleBlink(agent);              // schedule the next one
+      }
+    }, 140);
+  }, delay);
+}
+
+// ── Public API ─────────────────────────────────────────────────
 
 window.setAgentSprite = function (agent, state) {
   if (!FRAMES[agent] || !FRAMES[agent][state]) return;
-  if (currentStates[agent] === state) return;
-  currentStates[agent] = state;
-  renderSprite(agent, state);
+  setBehavior(agent, state);
 };
 
+// ── Init ───────────────────────────────────────────────────────
+
 function init() {
-  ['analyst', 'coach', 'critic'].forEach(agent => renderSprite(agent, 'idle'));
+  preloadAll();
+  ['analyst', 'coach', 'critic'].forEach(agent => setBehavior(agent, 'idle'));
 }
 
 if (document.readyState === 'loading') {

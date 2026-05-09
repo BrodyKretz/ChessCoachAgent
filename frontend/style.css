@@ -112,8 +112,18 @@ header h1 {
   transition: opacity 0.35s ease;
 }
 
-.agent-node.active .face  { opacity: 1; }
+.agent-node.active .face   { opacity: 1; }
 .agent-node.complete .face { opacity: 0.7; }
+
+/* Subtle idle bob — makes them feel alive even when still */
+.agent-node .face svg {
+  animation: sprite-bob 3.5s ease-in-out infinite;
+}
+
+@keyframes sprite-bob {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-2px); }
+}
 
 .agent-node .label {
   font-size: 11px;
