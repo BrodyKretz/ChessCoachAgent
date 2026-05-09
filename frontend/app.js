@@ -70,6 +70,11 @@ function updateNode(nodeName, status) {
   badge.textContent = BADGES[status] || status;
   updateArrows(mapped, status);
 
+  if (window.setAgentSprite) {
+    const spriteState = status === 'active' ? 'thinking' : status === 'waiting' ? 'talking' : 'idle';
+    setAgentSprite(mapped, spriteState);
+  }
+
   if (mapped === 'coach' && status === 'active' && revisionCount > 0) {
     document.getElementById('feedback-label').classList.add('visible');
   }
@@ -89,6 +94,8 @@ const AGENT_LABELS = { analyst: 'Analyst', coach: 'Coach King', critic: 'Critic'
 
 function appendStream(agent, text) {
   const body = document.getElementById('output-body');
+
+  if (window.setAgentSprite) setAgentSprite(agent, 'talking');
 
   if (currentAgent !== agent) {
     currentAgent = agent;

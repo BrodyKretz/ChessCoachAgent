@@ -1,4 +1,6 @@
 .env
+DEEP_DIVE_GUIDE.pdf
+generate_deep_dive.py
 __pycache__/
 *.pyc
 *.pyo
