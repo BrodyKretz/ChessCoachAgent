@@ -3,6 +3,7 @@ let ws = null;
 let currentAgent = null;
 let outputBlocks = {};
 let pdfPath = null;
+let positionsPdfPath = null;
 let currentQuestionId = null;
 let revisionCount = 0;
 
@@ -13,6 +14,7 @@ function startSession(e) {
   const username = document.getElementById('input-username').value.trim();
   const numGames = parseInt(document.getElementById('input-games').value) || 10;
   const timeCtrl = document.getElementById('input-tc').value;
+  const enableEngine = document.getElementById('input-engine').checked;
 
   if (!username) return;
 
@@ -22,9 +24,12 @@ function startSession(e) {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
 
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type: 'start', username, num_games: numGames, time_control: timeCtrl }));
+    ws.send(JSON.stringify({
+      type: 'start', username, num_games: numGames,
+      time_control: timeCtrl, enable_engine: enableEngine
+    }));
     setStatus('active', 'Session running');
-    addDebug('▶', `Session started for ${username}`);
+    addDebug('▶', `Session started for ${username}${enableEngine ? ' (engine analysis on)' : ''}`);
   };
 
   ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
@@ -48,7 +53,11 @@ function handleMessage(msg) {
     case 'stream':   appendStream(msg.agent, msg.text);          break;
     case 'speak':    speak(msg.text);                            break;
     case 'question': showQuestion(msg.id, msg.question, msg.options || []); break;
-    case 'complete': pdfPath = msg.pdf_path; showComplete();     break;
+    case 'complete':
+      pdfPath = msg.pdf_path;
+      positionsPdfPath = msg.positions_pdf_path || null;
+      showComplete();
+      break;
     case 'error':    addDebug('✗', msg.message); setStatus('error', 'Error'); break;
   }
 }
@@ -197,12 +206,21 @@ function showComplete() {
   document.getElementById('question-card').classList.remove('visible');
   document.getElementById('complete-card').classList.add('visible');
   document.getElementById('interaction-header').textContent = 'Report Ready';
+  document.getElementById('download-positions-btn').style.display =
+    positionsPdfPath ? '' : 'none';
   addDebug('✓', 'Session complete — report saved to outputs/ folder.');
+  if (positionsPdfPath) addDebug('✓', 'Key Positions workbook ready.');
 }
 
 function downloadPdf() {
   if (!pdfPath) return;
   const filename = pdfPath.split('/').pop();
+  window.open(`/outputs/${filename}`, '_blank');
+}
+
+function downloadPositionsPdf() {
+  if (!positionsPdfPath) return;
+  const filename = positionsPdfPath.split('/').pop();
   window.open(`/outputs/${filename}`, '_blank');
 }
 

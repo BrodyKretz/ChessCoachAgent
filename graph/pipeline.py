@@ -18,8 +18,10 @@ from agents.coach import coach_interview_node, generate_lesson_node
 from agents.critic import critic_review_node, should_regenerate
 from memory.user_store import get_user, save_user, update_last_session
 from tools.chess_api import validate_user, fetch_recent_games
+from tools.engine_findings import collect_findings
 from tools.pgn_parser import parse_game
 from utils.pdf_generator import generate_coaching_pdf
+from utils.book.builder import build_key_positions_pdf
 from utils.events import bus
 
 
@@ -83,11 +85,22 @@ def analyst_interview_node(state: ChessCoachState) -> dict:
     tc_map = {"1": "blitz", "2": "bullet", "3": "rapid", "4": "daily", "5": "all"}
     time_control = tc_map.get(raw, saved_tc or "all")
 
+    raw = input(
+        "\n  Run deep engine analysis on your moves? Produces a personalized\n"
+        "  'Key Positions' diagram book (adds 3-5 min). [y/N]: "
+    ).strip().lower()
+    enable_engine = raw in {"y", "yes"}
+
+    extras = " plus an engine pass" if enable_engine else ""
     coach_says(
-        f"Perfect. I'll analyze your last {num_games} {time_control} games. "
+        f"Perfect. I'll analyze your last {num_games} {time_control} games{extras}. "
         "Give me a moment to pull them from Chess.com."
     )
-    return {"num_games": num_games, "time_control": time_control}
+    return {
+        "num_games": num_games,
+        "time_control": time_control,
+        "enable_engine": enable_engine,
+    }
 
 
 def fetch_games_node(state: ChessCoachState) -> dict:
@@ -123,6 +136,28 @@ def fetch_games_node(state: ChessCoachState) -> dict:
     return {"raw_games": raw_games, "game_summaries": summaries}
 
 
+def engine_analysis_node(state: ChessCoachState) -> dict:
+    """Optionally run Stockfish to find blunders + missed mates per game.
+
+    Opt-in: triggered by state['enable_engine'] OR env CHESS_ENGINE_ANALYSIS=1.
+    Always returns 'engine_findings' (possibly empty) so downstream nodes can
+    rely on the key being present.
+    """
+    flag = state.get("enable_engine") or os.getenv("CHESS_ENGINE_ANALYSIS") == "1"
+    if not flag or not state.get("raw_games"):
+        return {"engine_findings": []}
+
+    username = state["username"]
+    raw_games = state["raw_games"]
+    bus.node_active("engine")
+    bus.debug(f"Running Stockfish on {len(raw_games)} games — this takes a few minutes...")
+
+    findings = collect_findings(raw_games, username, depth=12)
+    bus.debug(f"Engine found {len(findings)} teachable positions.")
+    bus.node_complete("engine")
+    return {"engine_findings": findings}
+
+
 def format_output_node(state: ChessCoachState) -> dict:
     """Assemble final report, save markdown + PDF, update user preferences."""
     username = state["username"]
@@ -155,6 +190,18 @@ def format_output_node(state: ChessCoachState) -> dict:
     pdf_path = f"outputs/{username}_report_{timestamp}.pdf"
     generate_coaching_pdf(final_report, pdf_path, username, generated_at)
 
+    # If engine analysis ran, also emit a personalized Key Positions book.
+    findings = state.get("engine_findings") or []
+    positions_pdf: str | None = None
+    if findings:
+        positions_pdf = f"outputs/{username}_positions_{timestamp}.pdf"
+        try:
+            build_key_positions_pdf(findings, username, generated_at, positions_pdf)
+            bus.debug(f"Key Positions book saved to {positions_pdf}")
+        except Exception as e:
+            bus.debug(f"Could not build positions book: {e}")
+            positions_pdf = None
+
     save_user(username, {
         "preferred_time_control": time_control,
         "white_opening": goals.get("white_opening"),
@@ -164,7 +211,7 @@ def format_output_node(state: ChessCoachState) -> dict:
     })
 
     bus.debug("Report saved! Your coaching plan is ready.")
-    bus.complete(md_path, pdf_path)
+    bus.complete(md_path, pdf_path, positions_pdf)
 
     return {"final_report": final_report}
 
@@ -177,13 +224,15 @@ def _base_graph() -> StateGraph:
     """Nodes shared by both CLI and web graphs."""
     workflow = StateGraph(ChessCoachState)
     workflow.add_node("fetch_games", fetch_games_node)
+    workflow.add_node("engine_analysis", engine_analysis_node)
     workflow.add_node("analyze_games", analyze_games_node)
     workflow.add_node("coach_interview", coach_interview_node)
     workflow.add_node("generate_lesson", generate_lesson_node)
     workflow.add_node("critic_review", critic_review_node)
     workflow.add_node("format_output", format_output_node)
 
-    workflow.add_edge("fetch_games", "analyze_games")
+    workflow.add_edge("fetch_games", "engine_analysis")
+    workflow.add_edge("engine_analysis", "analyze_games")
     workflow.add_edge("analyze_games", "coach_interview")
     workflow.add_edge("coach_interview", "generate_lesson")
     workflow.add_edge("generate_lesson", "critic_review")
@@ -224,6 +273,7 @@ def run_coaching_session():
         "username": "", "is_returning_user": False, "user_data": {},
         "num_games": 10, "time_control": "all",
         "raw_games": [], "game_summaries": [],
+        "enable_engine": False, "engine_findings": [],
         "analysis_report": "", "player_goals": {},
         "coaching_report": "", "critique_result": {},
         "critique_attempts": 0, "final_report": "", "messages": [],
@@ -231,7 +281,8 @@ def run_coaching_session():
     return graph.invoke(initial)
 
 
-def run_coaching_session_web(username: str, num_games: int, time_control: str, user_data: dict):
+def run_coaching_session_web(username: str, num_games: int, time_control: str,
+                             user_data: dict, enable_engine: bool = False):
     """Web entry point — called from api/session.py in a background thread."""
     graph = build_web_graph()
     initial: ChessCoachState = {
@@ -241,6 +292,7 @@ def run_coaching_session_web(username: str, num_games: int, time_control: str, u
         "num_games": num_games,
         "time_control": time_control,
         "raw_games": [], "game_summaries": [],
+        "enable_engine": enable_engine, "engine_findings": [],
         "analysis_report": "", "player_goals": {},
         "coaching_report": "", "critique_result": {},
         "critique_attempts": 0, "final_report": "", "messages": [],

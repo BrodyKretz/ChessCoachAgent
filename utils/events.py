@@ -104,10 +104,14 @@ class EventBus:
         else:
             return input("  > ").strip()
 
-    def complete(self, md_path: str, pdf_path: str):
+    def complete(self, md_path: str, pdf_path: str,
+                 positions_pdf_path: Optional[str] = None):
         """Signal that the session is finished."""
         if self.is_web():
-            self._put({"type": "complete", "md_path": md_path, "pdf_path": pdf_path})
+            payload = {"type": "complete", "md_path": md_path, "pdf_path": pdf_path}
+            if positions_pdf_path:
+                payload["positions_pdf_path"] = positions_pdf_path
+            self._put(payload)
 
     def error(self, message: str):
         if self.is_web():

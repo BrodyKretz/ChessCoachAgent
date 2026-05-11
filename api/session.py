@@ -11,6 +11,7 @@ def run_session(config: dict):
     username = config.get("username", "").strip()
     num_games = int(config.get("num_games", 10))
     time_control = config.get("time_control", "all")
+    enable_engine = bool(config.get("enable_engine", False))
 
     # --- Memory check ---
     bus.node_active("setup")
@@ -42,4 +43,5 @@ def run_session(config: dict):
         num_games=num_games,
         time_control=time_control,
         user_data=user_data,
+        enable_engine=enable_engine,
     )

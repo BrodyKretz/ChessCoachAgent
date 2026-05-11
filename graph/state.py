@@ -21,6 +21,10 @@ class ChessCoachState(TypedDict):
     raw_games: list          # dicts from Chess.com API
     game_summaries: list     # dicts from pgn_parser.parse_game()
 
+    # -- Engine analysis (opt-in) --
+    enable_engine: bool      # if True, run Stockfish on user moves and collect findings
+    engine_findings: list    # list[Finding] from tools.engine_findings (may be empty)
+
     # -- Agent outputs --
     analysis_report: str     # from Analyst agent
     player_goals: dict       # from Coach interview

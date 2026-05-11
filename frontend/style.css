@@ -377,6 +377,30 @@ input:focus, select:focus, textarea:focus {
 
 select option { background: var(--surface2); }
 
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  transition: border-color 0.2s, color 0.2s;
+}
+.checkbox-row:hover { border-color: var(--accent); color: var(--text); }
+.checkbox-row input {
+  width: auto;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.checkbox-row strong { color: var(--text); font-weight: 600; }
+
 /* ── Question card ──────────────────────────────────────────── */
 #question-card { display: none; flex-direction: column; gap: 12px; }
 #question-card.visible { display: flex; }
