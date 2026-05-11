@@ -31,6 +31,13 @@ const PALS = {
     G:'#3c2810', g:'#5c4028', T:'#907850',
     l:'#5a6090', r:'#cc8050', _:'#7070a0',
   },
+  engine: {
+    S:'#c0c4ce', s:'#7a8090',                   // stone light / shadow
+    E:'#5ac8f0', e:'#2a3040', _:'#3a4050',      // eye glow / socket / squint
+    O:'#1a2530', r:'#5a6470',                   // mouth slot / grill line
+    G:'#8090a8', g:'#5a6878',                   // armor stone / shadow
+    C:'#5ac8f0', c:'#3aa0c8', M:'#a0e0ff',      // chest rune (bright/dim/core)
+  },
 };
 
 const FRAMES = {
@@ -149,6 +156,63 @@ const FRAMES = {
     ],
   },
 
+  engine: {
+    idle: [
+      '....SSSSSS..',
+      '...SSsSSSsS.',
+      '...SSSSSSSS.',
+      '...SsSSSSss.',
+      '....EE.EE...',
+      '...SSSSSSS..',
+      '...SSSrSSS..',
+      '..GGGGGGGGG.',
+      '..GSSCCCSSG.',
+      '..GSCCMCCSG.',
+      '..GSSCCCSSG.',
+      '..GGGGGGGGG.',
+      '..GS.....SG.',
+      '..GS.....SG.',
+      '..GG.....GG.',
+      '..GG.....GG.',
+    ],
+    talking: [
+      '....SSSSSS..',
+      '...SSsSSSsS.',
+      '...SSSSSSSS.',
+      '...SsSSSSss.',
+      '....EE.EE...',
+      '...SSSSSSS..',
+      '...SSOOOSS..',
+      '..GGGGGGGGG.',
+      '..GSSCCCSSG.',
+      '..GSCCMCCSG.',
+      '..GSSCCCSSG.',
+      '..GGGGGGGGG.',
+      '..GS.....SG.',
+      '..GS.....SG.',
+      '..GG.....GG.',
+      '..GG.....GG.',
+    ],
+    thinking: [
+      '....SSSSSS..',
+      '...SSsSSSsS.',
+      '...SSSSSSSS.',
+      '...SsSSSSss.',
+      '....__.__...',
+      '...SSSSSSS..',
+      '...SSSrSSS..',
+      '..GGGGGGGGG.',
+      '..GSScccSSG.',
+      '..GScccccSG.',
+      '..GSScccSSG.',
+      '..GGGGGGGGG.',
+      '..GS.....SG.',
+      '..GS.....SG.',
+      '..GG.....GG.',
+      '..GG.....GG.',
+    ],
+  },
+
   critic: {
     idle: [
       'WW........WW',
@@ -247,7 +311,7 @@ function buildSVGElement(agent, state) {
 const cache = {};   // cache[agent][state] = SVGElement
 
 function preloadAll() {
-  ['analyst', 'coach', 'critic'].forEach(agent => {
+  ['analyst', 'engine', 'coach', 'critic'].forEach(agent => {
     cache[agent] = {};
     ['idle', 'talking', 'thinking'].forEach(state => {
       cache[agent][state] = buildSVGElement(agent, state);
@@ -332,7 +396,7 @@ window.setAgentSprite = function (agent, state) {
 
 function init() {
   preloadAll();
-  ['analyst', 'coach', 'critic'].forEach(agent => setBehavior(agent, 'idle'));
+  ['analyst', 'engine', 'coach', 'critic'].forEach(agent => setBehavior(agent, 'idle'));
 }
 
 if (document.readyState === 'loading') {

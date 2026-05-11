@@ -11,6 +11,7 @@
   --analyst-color: #7aaad4;
   --coach-color:   #c0a060;
   --critic-color:  #c05868;
+  --engine-color:  #5ac8f0;
 
   --accent:      #5a90c8;
   --accent-dim:  rgba(90, 144, 200, 0.12);
@@ -194,8 +195,12 @@ html, body {
 }
 
 .agent-node.analyst { --node-color: var(--analyst-color); }
+.agent-node.engine  { --node-color: var(--engine-color); }
 .agent-node.coach   { --node-color: var(--coach-color); }
 .agent-node.critic  { --node-color: var(--critic-color); }
+
+.agent-node.engine.skipped { opacity: 0.2; }
+.agent-node.engine.skipped .status-badge { font-style: italic; }
 
 .agent-node.active {
   border-color: var(--node-color);

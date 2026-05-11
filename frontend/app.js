@@ -30,6 +30,7 @@ function startSession(e) {
     }));
     setStatus('active', 'Session running');
     addDebug('▶', `Session started for ${username}${enableEngine ? ' (engine analysis on)' : ''}`);
+    markEngineSkipped(!enableEngine);
   };
 
   ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
@@ -63,7 +64,9 @@ function handleMessage(msg) {
 }
 
 /* ── Node pipeline UI ───────────────────────────────────────── */
-const NODE_MAP = { analyst: 'analyst', coach: 'coach', critic: 'critic' };
+const NODE_MAP = {
+  analyst: 'analyst', engine: 'engine', coach: 'coach', critic: 'critic'
+};
 const BADGES   = { active: 'Working...', complete: 'Done ✓', waiting: 'Waiting for you...' };
 
 function updateNode(nodeName, status) {
@@ -89,8 +92,25 @@ function updateNode(nodeName, status) {
   }
 }
 
+function markEngineSkipped(skipped) {
+  const node  = document.getElementById('node-engine');
+  const badge = document.getElementById('badge-engine');
+  if (!node || !badge) return;
+  if (skipped) {
+    node.classList.add('skipped');
+    badge.textContent = 'Skipped';
+  } else {
+    node.classList.remove('skipped');
+    badge.textContent = '—';
+  }
+}
+
 function updateArrows(node, status) {
-  const arrowMap = { coach: 'arrow-analyst-coach', critic: 'arrow-coach-critic' };
+  const arrowMap = {
+    engine: 'arrow-analyst-engine',
+    coach:  'arrow-engine-coach',
+    critic: 'arrow-coach-critic',
+  };
   document.querySelectorAll('.pipe-arrow').forEach(a => a.classList.remove('active'));
   if (status === 'active' && arrowMap[node]) {
     const el = document.getElementById(arrowMap[node]);
