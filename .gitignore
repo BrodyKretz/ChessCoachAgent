@@ -14,3 +14,9 @@ venv/
 *.egg-info/
 dist/
 build/
+
+# Local SQLite session store — written every session, not source of truth
+data/users.db
+
+# Test scratch
+outputs/_test_*
