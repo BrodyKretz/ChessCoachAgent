@@ -46,6 +46,13 @@ def _played_clause(played_san: str, theme: str, cp_loss: int) -> str:
             f"You played <b>{played_san}</b>, which is a reasonable-looking move — "
             f"but it lets the win slip away."
         )
+    # A cp_loss above ~1500 almost always means the position swung from playable
+    # to lost — usually a forced losing sequence rather than literal material loss.
+    if cp_loss >= 1500:
+        return (
+            f"You played <b>{played_san}</b> — but this walks into a forced "
+            f"losing sequence the engine sees several moves out."
+        )
     pawns = round(cp_loss / 100)
     pawn_word = "pawn" if pawns == 1 else "pawns"
     if cp_loss >= 500:
