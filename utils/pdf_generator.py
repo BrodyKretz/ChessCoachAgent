@@ -93,6 +93,29 @@ def _inline(text: str) -> str:
 
 # ── Block-level markdown → LaTeX ─────────────────────────────────────────────
 
+def _strip_leading_meta(markdown: str) -> str:
+    """Drop the leading `# Title` + metadata lines; the cover block carries them.
+
+    The pipeline writes a markdown header (title, date, games, quality score)
+    that's redundant with the PDF cover block. We skip lines up to and
+    including the first horizontal rule (`---`), or stop at the first
+    real section heading (`##`) if no rule is present.
+    """
+    lines = markdown.splitlines()
+    if not lines or not lines[0].startswith("# "):
+        return markdown
+    i = 1
+    while i < len(lines):
+        s = lines[i].strip()
+        if s.startswith("---"):
+            i += 1
+            break
+        if s.startswith("## "):
+            break
+        i += 1
+    return "\n".join(lines[i:]).lstrip("\n")
+
+
 def _convert_body(markdown: str) -> str:
     """Convert markdown text (Claude's coaching report output) to LaTeX body."""
     lines = markdown.splitlines()
@@ -175,21 +198,24 @@ _PREAMBLE = r"""\documentclass[11pt,a4paper]{article}
 \usepackage{fontspec}
 \usepackage{parskip}
 
-%% --- Colors ---
-\definecolor{accent}{HTML}{1f3a5f}
-\definecolor{neutral}{HTML}{555555}
+%% --- Colors (workbook palette: gold accent, soft neutrals) ---
+\definecolor{accent}{HTML}{e2b04a}
+\definecolor{accentdeep}{HTML}{a17c2c}
+\definecolor{ink}{HTML}{1a1a1a}
+\definecolor{neutral}{HTML}{7a7a7a}
+\definecolor{rule}{HTML}{d8d8d8}
 
 %% --- Fonts (macOS system fonts; swap if needed) ---
 \setmainfont{Georgia}
 \setmonofont{Menlo}[Scale=0.86]
 
-%% --- Section formatting ---
+%% --- Section formatting (workbook chapter style: title + short gold rule) ---
 \titleformat{\section}
-  {\large\bfseries\color{accent}}{\thesection.}{0.5em}{}
-  [\vspace{2pt}\textcolor{accent}{\titlerule[0.5pt]}]
+  {\Large\bfseries\color{ink}}{}{0pt}{}
+  [\vspace{2pt}\textcolor{accent}{\rule{60pt}{2pt}}]
 
 \titleformat{\subsection}
-  {\normalsize\bfseries\color{neutral}}{\thesubsection}{0.5em}{}
+  {\normalsize\bfseries\color{ink}}{}{0pt}{}
 
 \titleformat{\subsubsection}
   {\small\bfseries\color{neutral}}{}{0em}{}
@@ -211,26 +237,20 @@ _PREAMBLE = r"""\documentclass[11pt,a4paper]{article}
 \setlist{topsep=3pt, itemsep=2pt, parsep=0pt}
 """
 
+# Workbook-style cover block: gold tab + series tag + big name + report
+# kicker + a thin rule, then byline (date / quality) below.
 _TITLE_BLOCK = r"""
 \noindent
-\begin{tcolorbox}[
-  enhanced, sharp corners, arc=0pt,
-  colback=accent!8!white, colframe=accent,
-  boxrule=0.8pt, left=12pt, right=12pt, top=10pt, bottom=10pt,
-]
-\begin{minipage}[t]{0.56\linewidth}
-  {\LARGE\bfseries\color{accent} PLAYER_USERNAME}\\[3pt]
-  {\large\color{neutral} Chess Coaching Report}
-\end{minipage}%
-\hfill
-\begin{minipage}[t]{0.41\linewidth}
-  \raggedleft\small\color{neutral}
-  \textbf{Generated:} REPORT_DATE\\
-  \textbf{Quality score:} QUALITY_SCORE\,/\,100
-\end{minipage}
-\end{tcolorbox}
+{\color{accent}\rule{80pt}{4pt}}\\[6pt]
+{\small\bfseries\color{neutral} CHESS COACH \textperiodcentered\ COACHING REPORT}\\[14pt]
+{\fontsize{32pt}{36pt}\selectfont\bfseries\color{ink} PLAYER_USERNAME}\\[6pt]
+{\large\color{neutral} Personalized lessons from your games}\\[8pt]
+{\color{rule}\rule{\linewidth}{0.4pt}}\\[10pt]
+{\small\color{neutral}
+  \textbf{Generated:} REPORT_DATE \quad
+  \textbf{Quality score:} QUALITY_SCORE\,/\,100}
 
-\vspace{6pt}
+\vspace{12pt}
 """
 
 
@@ -295,7 +315,7 @@ def generate_coaching_pdf(
     pdf_path = Path(output_path)
     tex_path = pdf_path.with_suffix('.tex')
 
-    body  = _convert_body(markdown_text)
+    body  = _convert_body(_strip_leading_meta(markdown_text))
     latex = _build_tex(body, username, generated_at, quality_score)
 
     tex_path.write_text(latex, encoding='utf-8')
@@ -366,30 +386,37 @@ def _generate_pdf_reportlab(markdown_text: str, output_path: str, username: str,
         topMargin=0.75*inch, bottomMargin=0.75*inch,
         leftMargin=1*inch, rightMargin=1*inch,
     )
-    dark = colors.HexColor('#1f3a5f')
+    ink        = colors.HexColor('#1a1a1a')
     body_color = colors.HexColor('#222222')
-    dim_color  = colors.HexColor('#555555')
+    dim_color  = colors.HexColor('#7a7a7a')
     styles = {
-        'Title':  ParagraphStyle('Title',  fontName='Times-Bold',   fontSize=22, textColor=dark,       spaceAfter=4,  leading=28),
+        'Title':  ParagraphStyle('Title',  fontName='Times-Bold',   fontSize=24, textColor=ink,         spaceAfter=4,  leading=30),
         'Sub':    ParagraphStyle('Sub',    fontName='Times-Roman',  fontSize=11, textColor=dim_color,   spaceAfter=3,  leading=16),
-        'H1':     ParagraphStyle('H1',     fontName='Times-Bold',   fontSize=16, textColor=dark,        spaceBefore=12, spaceAfter=4, leading=20),
-        'H2':     ParagraphStyle('H2',     fontName='Times-Bold',   fontSize=13, textColor=dark,        spaceBefore=8,  spaceAfter=3, leading=17),
-        'H3':     ParagraphStyle('H3',     fontName='Times-BoldItalic', fontSize=11, textColor=dark,    spaceBefore=6,  spaceAfter=2, leading=15),
+        'H1':     ParagraphStyle('H1',     fontName='Times-Bold',   fontSize=16, textColor=ink,         spaceBefore=12, spaceAfter=4, leading=20),
+        'H2':     ParagraphStyle('H2',     fontName='Times-Bold',   fontSize=13, textColor=ink,         spaceBefore=8,  spaceAfter=3, leading=17),
+        'H3':     ParagraphStyle('H3',     fontName='Times-BoldItalic', fontSize=11, textColor=ink,     spaceBefore=6,  spaceAfter=2, leading=15),
         'Body':   ParagraphStyle('Body',   fontName='Times-Roman',  fontSize=10, textColor=body_color,  leading=15),
         'Bullet': ParagraphStyle('Bullet', fontName='Times-Roman',  fontSize=10, textColor=body_color,  leading=14, leftIndent=14),
     }
 
     _enum_re = re.compile(r'^\d+\.\s+(.+)')
     in_list = False
+    gold = colors.HexColor('#e2b04a')
     story = [
-        Paragraph('Chess Coaching Report', styles['Title']),
-        Paragraph(_rl_escape(username), styles['Sub']),
-        Paragraph(_rl_escape(generated_at), styles['Sub']),
-        HRFlowable(width='100%', thickness=2, color=dark),
-        Spacer(1, 0.15*inch),
+        HRFlowable(width=80, thickness=4, color=gold, hAlign='LEFT'),
+        Spacer(1, 0.08*inch),
+        Paragraph('CHESS COACH · COACHING REPORT', styles['Sub']),
+        Spacer(1, 0.18*inch),
+        Paragraph(_rl_escape(username), styles['Title']),
+        Paragraph('Personalized lessons from your games', styles['Sub']),
+        Spacer(1, 0.06*inch),
+        HRFlowable(width='100%', thickness=0.4, color=colors.HexColor('#d8d8d8')),
+        Spacer(1, 0.06*inch),
+        Paragraph(f'Generated: {_rl_escape(generated_at)}', styles['Sub']),
+        Spacer(1, 0.18*inch),
     ]
 
-    for line in markdown_text.splitlines():
+    for line in _strip_leading_meta(markdown_text).splitlines():
         s = line.strip()
         if not s:
             story.append(Spacer(1, 0.08*inch))
@@ -404,7 +431,7 @@ def _generate_pdf_reportlab(markdown_text: str, output_path: str, username: str,
         elif _enum_re.match(s):
             story.append(Paragraph(f'• {_inline_rl(_enum_re.match(s).group(1))}', styles['Bullet']))
         elif s.startswith('---'):
-            story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#aaa')))
+            story.append(HRFlowable(width='100%', thickness=0.4, color=colors.HexColor('#d8d8d8')))
         else:
             story.append(Paragraph(_inline_rl(s), styles['Body']))
 
