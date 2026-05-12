@@ -30,6 +30,7 @@ from .layout import (
     games_chapter_story,
     lesson_story,
     prose_chapter_story,
+    puzzle_grid_chapter_story,
     section_opener_story,
     test_page_story,
 )
@@ -173,6 +174,24 @@ def build_workbook_pdf(
             body_flowables=markdown_to_flowables(coaching_md, styles),
         ))
         story.append(PageBreak())
+
+    # ---- Chapter 6: Puzzles from Your Games -----------------------------
+    # 3x3 grid of mini-boards mirroring the ChessWins mate-in-one PDF —
+    # bare puzzles drawn from your real mistakes. Solutions are in the
+    # teaching chapters above; this section is for re-testing yourself.
+    if findings:
+        chapter_no += 1
+        story.extend(puzzle_grid_chapter_story(
+            styles, number=chapter_no, title="Puzzles from Your Games",
+            lead=(
+                "Each diagram below is a real position from one of your "
+                "games where you went wrong. Try to find the move on your "
+                "own — the answers are in the chapters above. Come back to "
+                "this page in a week and see if you've internalized the "
+                "pattern."
+            ),
+            findings=list(findings),
+        ))
 
     # ---- Closing Test page ---------------------------------------------
     if position_no > 0:

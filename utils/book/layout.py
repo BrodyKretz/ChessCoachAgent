@@ -156,13 +156,25 @@ def build_doc(out_path: str, title: str, author: str) -> BaseDocTemplate:
         showBoundary=0, id="right",
     )
 
+    # Full-width body frame for puzzle grids (single column, but keeps
+    # the running header at the top).
+    wide_frame = Frame(
+        MARGIN, BODY_BOTTOM,
+        CONTENT_W, BODY_H,
+        leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0,
+        showBoundary=0, id="wide",
+    )
+
     cover_template = PageTemplate(
         id="cover", frames=[cover_frame], onPage=draw_cover_chrome,
     )
     body_template = PageTemplate(
         id="body", frames=[left_frame, right_frame], onPage=draw_running_header,
     )
-    doc.addPageTemplates([cover_template, body_template])
+    wide_template = PageTemplate(
+        id="wide", frames=[wide_frame], onPage=draw_running_header,
+    )
+    doc.addPageTemplates([cover_template, body_template, wide_template])
     return doc
 
 
@@ -297,6 +309,103 @@ def games_chapter_story(styles: dict, number: int,
             f"<i>{opening}</i>. <b>{outcome}</b> in {moves} moves."
         )
         parts.append(Paragraph(line, styles["body_bullet"]))
+    return parts
+
+
+# --- Puzzles chapter (3x3 grid of bare diagrams) ------------------------
+
+# Single grid cell footprint within the puzzles chapter
+_PUZZLE_COLS = 3
+_PUZZLE_ROWS = 3
+_PUZZLES_PER_PAGE = _PUZZLE_COLS * _PUZZLE_ROWS
+
+
+def _draw_puzzle_grid_page(canvas, findings, start_num: int) -> None:
+    """Draw one 3x3 puzzle grid page on the given canvas.
+
+    Each cell: board + 'N. Side to play' + 'vs Opponent, move M'.
+    """
+    cell_gap_x = 18
+    cell_gap_y = 36
+    grid_top = PAGE_H - MARGIN - HEADER_BAND_H - 16
+
+    cell_w = (CONTENT_W - cell_gap_x * (_PUZZLE_COLS - 1)) / _PUZZLE_COLS
+    board_size = cell_w
+    cap_h = 26
+
+    for i, f in enumerate(findings[:_PUZZLES_PER_PAGE]):
+        row = i // _PUZZLE_COLS
+        col = i % _PUZZLE_COLS
+        x = MARGIN + col * (cell_w + cell_gap_x)
+        y_top = grid_top - row * (board_size + cap_h + cell_gap_y)
+        y_board = y_top - board_size
+
+        d = render_board(f.fen, side=f.side_to_move, size=board_size)
+        renderPDF.draw(d, canvas, x, y_board)
+
+        side_text = "White to play" if f.side_to_move == "white" else "Black to play"
+        canvas.setFont("Times-Roman", 10.5)
+        canvas.setFillColor(TEXT)
+        canvas.drawCentredString(x + board_size / 2, y_board - 14,
+                                 f"{start_num + i}. {side_text}")
+
+        opp = f.opponent or "Unknown opponent"
+        canvas.setFont("Times-Italic", 9)
+        canvas.setFillColor(TEXT_MUTED)
+        canvas.drawCentredString(x + board_size / 2, y_board - 26,
+                                 f"vs {opp}, move {f.move_number}")
+
+
+class PuzzleGridFlowable(Flowable):
+    """A single puzzle-grid PAGE expressed as a Flowable.
+
+    Drawn directly on the page canvas; intended for the full-width
+    'wide' page template (no 2-column frame).
+    """
+
+    def __init__(self, findings: Sequence, start_num: int):
+        super().__init__()
+        self.findings = list(findings)
+        self.start_num = start_num
+        self.width = CONTENT_W
+        self.height = BODY_H
+
+    def wrap(self, avail_w, avail_h):
+        return (self.width, self.height)
+
+    def draw(self):
+        _draw_puzzle_grid_page(self.canv, self.findings, self.start_num)
+
+
+def puzzle_grid_chapter_story(styles: dict, number: int, title: str,
+                              lead: str, findings: Sequence) -> list:
+    """Build a chapter of bare 3x3 puzzle pages from real engine findings.
+
+    Switches to the 'wide' (single full-width column) page template for
+    the chapter opener and grid pages, then switches back to 'body'.
+    """
+    from reportlab.platypus import NextPageTemplate, PageBreak
+
+    parts: list = [
+        # Force a new page using the wide template so the chapter opener
+        # gets the full width (no 2-column squeeze on the title).
+        NextPageTemplate("wide"),
+        PageBreak(),
+        Paragraph(f"{number}. {title}", styles["chapter"]),
+        Spacer(1, 6),
+        Paragraph(lead, styles["body"]),
+        PageBreak(),
+    ]
+
+    # Emit one grid page per 9 findings.
+    chunk_size = _PUZZLES_PER_PAGE
+    for i in range(0, len(findings), chunk_size):
+        chunk = findings[i: i + chunk_size]
+        parts.append(PuzzleGridFlowable(chunk, start_num=i + 1))
+        parts.append(PageBreak())
+
+    # Back to 2-column body for any later chapters / the Test page.
+    parts.append(NextPageTemplate("body"))
     return parts
 
 
