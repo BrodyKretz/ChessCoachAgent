@@ -20,8 +20,7 @@ from memory.user_store import get_user, save_user, update_last_session
 from tools.chess_api import validate_user, fetch_recent_games
 from tools.engine_findings import collect_findings
 from tools.pgn_parser import parse_game
-from utils.pdf_generator import generate_coaching_pdf
-from utils.book.builder import build_key_positions_pdf
+from utils.book.builder import build_workbook_pdf
 from utils.events import bus
 
 
@@ -159,7 +158,7 @@ def engine_analysis_node(state: ChessCoachState) -> dict:
 
 
 def format_output_node(state: ChessCoachState) -> dict:
-    """Assemble final report, save markdown + PDF, update user preferences."""
+    """Assemble the final workbook, save markdown + PDF, update user prefs."""
     username = state["username"]
     analysis = state["analysis_report"]
     coaching = state["coaching_report"]
@@ -167,10 +166,14 @@ def format_output_node(state: ChessCoachState) -> dict:
     critique = state.get("critique_result", {})
     num_games = state.get("num_games", 0)
     time_control = state.get("time_control", "all")
+    game_summaries = state.get("game_summaries") or []
+    findings = state.get("engine_findings") or []
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     generated_at = datetime.now().strftime("%B %d, %Y at %I:%M %p")
 
+    # Markdown sidecar: still useful for grep/version-control. Keeps the
+    # same human-readable shape as before.
     final_report = (
         f"# Chess Coaching Report — {username}\n"
         f"Generated: {generated_at}\n"
@@ -187,20 +190,19 @@ def format_output_node(state: ChessCoachState) -> dict:
     with open(md_path, "w") as f:
         f.write(final_report)
 
-    pdf_path = f"outputs/{username}_report_{timestamp}.pdf"
-    generate_coaching_pdf(final_report, pdf_path, username, generated_at)
-
-    # If engine analysis ran, also emit a personalized Key Positions book.
-    findings = state.get("engine_findings") or []
-    positions_pdf: str | None = None
-    if findings:
-        positions_pdf = f"outputs/{username}_positions_{timestamp}.pdf"
-        try:
-            build_key_positions_pdf(findings, username, generated_at, positions_pdf)
-            bus.debug(f"Key Positions book saved to {positions_pdf}")
-        except Exception as e:
-            bus.debug(f"Could not build positions book: {e}")
-            positions_pdf = None
+    # One combined workbook PDF replaces the prior two-file output.
+    pdf_path = f"outputs/{username}_workbook_{timestamp}.pdf"
+    build_workbook_pdf(
+        pdf_path,
+        username=username,
+        generated_at=generated_at,
+        game_summaries=game_summaries,
+        time_control=time_control,
+        analysis_md=analysis,
+        coaching_md=coaching,
+        findings=findings,
+    )
+    bus.debug(f"Workbook saved to {pdf_path}")
 
     save_user(username, {
         "preferred_time_control": time_control,
@@ -210,8 +212,8 @@ def format_output_node(state: ChessCoachState) -> dict:
         "main_goal": goals.get("main_goal"),
     })
 
-    bus.debug("Report saved! Your coaching plan is ready.")
-    bus.complete(md_path, pdf_path, positions_pdf)
+    bus.debug("Workbook ready — open it from the download button.")
+    bus.complete(md_path, pdf_path)
 
     return {"final_report": final_report}
 

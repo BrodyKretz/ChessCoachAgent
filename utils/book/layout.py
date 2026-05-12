@@ -241,6 +241,65 @@ def lesson_story(styles: dict, lesson: Lesson) -> list:
     ]
 
 
+# --- Prose chapter (no positions, just markdown body) -------------------
+
+def prose_chapter_story(styles: dict, number: int, title: str,
+                        lead: str, body_flowables: list) -> list:
+    """Chapter opener + a prose body. Used for analyst/coach markdown."""
+    return [
+        Paragraph(f"{number}. {title}", styles["chapter"]),
+        Spacer(1, 6),
+        Paragraph(lead, styles["body"]),
+        Spacer(1, 8),
+        *body_flowables,
+        Spacer(1, 8),
+    ]
+
+
+# --- Games-summary chapter ----------------------------------------------
+
+def games_chapter_story(styles: dict, number: int,
+                        username: str,
+                        games: list[dict],
+                        time_control: str) -> list:
+    """Chapter 1: an at-a-glance log of the games this session was built from."""
+    if not games:
+        return []
+
+    record = {"win": 0, "loss": 0, "draw": 0}
+    for g in games:
+        record[g.get("outcome", "draw")] = record.get(g.get("outcome", "draw"), 0) + 1
+
+    lead = (
+        f"This workbook is built from your last {len(games)} {time_control} games. "
+        f"You finished {record['win']}–{record['loss']}–{record['draw']} "
+        "(wins–losses–draws). Take a look at the table below — every diagram and "
+        "lesson later in this book comes from one of these games."
+    )
+
+    parts: list = [
+        Paragraph(f"{number}. Your Recent Games", styles["chapter"]),
+        Spacer(1, 6),
+        Paragraph(lead, styles["body"]),
+        Spacer(1, 10),
+    ]
+
+    # One line per game, formatted like a workbook bullet.
+    for i, g in enumerate(games, 1):
+        color = g.get("player_color", "?").title()
+        opp = (g.get("black_player") if g.get("player_color") == "white"
+               else g.get("white_player")) or "Unknown"
+        opening = g.get("opening_name") or "Unknown opening"
+        outcome = g.get("outcome", "draw").title()
+        moves = g.get("total_moves", "?")
+        line = (
+            f"<b>Game {i}</b> — {color} vs <b>{opp}</b>. "
+            f"<i>{opening}</i>. <b>{outcome}</b> in {moves} moves."
+        )
+        parts.append(Paragraph(line, styles["body_bullet"]))
+    return parts
+
+
 # --- Closing 'Test' page ------------------------------------------------
 
 def test_page_story(styles: dict, total_positions: int) -> list:

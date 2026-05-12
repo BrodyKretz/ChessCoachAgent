@@ -1,18 +1,20 @@
-"""Assemble the personalized 'Key Positions' workbook.
+"""Assemble the full personalized coaching workbook.
 
 Layout target: LearningChess - Lessons for Beginners Vol 1.
-    * Cover page (gold tab + series tag + big title + player + date)
-    * Italic running header across every body page
-    * Two-column flowing body with inline mini-boards
-    * Numbered chapters (1. Missed Mates / 2. Critical Blunders) with a
-      conversational intro paragraph and a single 'Q1.' multiple-choice
-      that frames the chapter theme
-    * One lesson per position: short intro, board, "Find the best move."
-      prompt, fill-in line ("1. __________"), then an explanation paragraph
-    * Closing 'Test' page with Score / Points / Correct / Time fields
 
-The page geometry, frames, and chrome live in layout.py; the prose lives
-in teaching.py; this module just orchestrates the story.
+The book is one PDF, multiple chapters, all in the same workbook voice:
+
+    Cover
+    1. Your Recent Games    -- table-style summary of the session's games
+    2. Game Analysis        -- Analyst LLM markdown rendered as prose
+    3. Missed Mates         -- engine_findings, one lesson per position (if any)
+    4. Critical Blunders    -- engine_findings, one lesson per position (if any)
+    5. Your Coaching Plan   -- Coach LLM markdown rendered as prose
+    Test                    -- closing page with score/points/correct/time fields
+
+Engine-driven chapters (3, 4) are only emitted when the user opted in to
+the engine analysis and Stockfish produced findings. The book still
+prints cleanly without them — the rest of the chapters are always present.
 """
 
 from __future__ import annotations
@@ -20,21 +22,23 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Sequence
 
-from reportlab.platypus import NextPageTemplate, PageBreak, Spacer
+from reportlab.platypus import PageBreak, Spacer
 
 from .layout import (
     build_doc,
     cover_story,
+    games_chapter_story,
     lesson_story,
+    prose_chapter_story,
     section_opener_story,
     test_page_story,
 )
+from .markdown import markdown_to_flowables
 from .styles import book_styles, register_fonts
 from .teaching import lesson_for
 
 
-# Chapter copy
-CHAPTER_DATA = {
+THEME_DATA = {
     "missed_mate": {
         "title": "Missed Mates",
         "intro": (
@@ -75,69 +79,123 @@ def _group_by_theme(findings: Sequence) -> dict[str, list]:
     return groups
 
 
-def build_key_positions_pdf(findings: Sequence, username: str,
-                            generated_at: str, output_path: str | Path) -> Path:
-    """Build the personalized workbook. Returns the output Path."""
+def build_workbook_pdf(
+    output_path: str | Path,
+    *,
+    username: str,
+    generated_at: str,
+    game_summaries: list[dict] | None = None,
+    time_control: str = "all",
+    analysis_md: str = "",
+    coaching_md: str = "",
+    findings: Sequence = (),
+) -> Path:
+    """Build the full personalized workbook PDF. Returns the output Path."""
     register_fonts()
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    groups = _group_by_theme(findings)
-    mates = groups.get("missed_mate", [])
-    blunders = groups.get("blunder", [])
-
-    if not mates and not blunders:
-        raise ValueError("No findings to render — refuse to emit empty book.")
-
     doc = build_doc(str(out),
-                    title=f"Key Positions — {username}",
+                    title=f"Coaching Workbook — {username}",
                     author="Chess Coach Agent")
     styles = book_styles()
 
     story: list = []
 
-    # ---- Cover (uses the special 'cover' page template) -----------------
+    # ---- Cover ----------------------------------------------------------
     story.extend(cover_story(
         styles,
-        title="Key Positions",
+        title="Coaching Workbook",
         subtitle="Personalized lessons from your games",
         player=username,
         period=generated_at,
     ))
 
-    # ---- Chapters --------------------------------------------------------
     chapter_no = 0
-    position_no = 0
 
+    # ---- Chapter 1: Your Recent Games -----------------------------------
+    if game_summaries:
+        chapter_no += 1
+        story.extend(games_chapter_story(
+            styles, number=chapter_no,
+            username=username, games=game_summaries,
+            time_control=time_control,
+        ))
+        story.append(PageBreak())
+
+    # ---- Chapter 2: Game Analysis (Analyst LLM output) ------------------
+    if analysis_md.strip():
+        chapter_no += 1
+        story.extend(prose_chapter_story(
+            styles, number=chapter_no, title="Game Analysis",
+            lead=(
+                "This chapter walks through the patterns the coach noticed "
+                "across your games. Read it slowly — the goal is to see your "
+                "own play through fresh eyes, not just to skim a checklist."
+            ),
+            body_flowables=markdown_to_flowables(analysis_md, styles),
+        ))
+        story.append(PageBreak())
+
+    # ---- Chapter 3-4: Tactics (engine findings) -------------------------
+    groups = _group_by_theme(findings)
+    position_no = 0
     for theme in ("missed_mate", "blunder"):
-        findings_in_theme = groups.get(theme, [])
-        if not findings_in_theme:
+        in_theme = groups.get(theme, [])
+        if not in_theme:
             continue
 
         chapter_no += 1
-        meta = CHAPTER_DATA[theme]
+        meta = THEME_DATA[theme]
         story.extend(section_opener_story(
-            styles,
-            number=chapter_no,
-            title=meta["title"],
-            intro=meta["intro"],
-            q_lead=meta["q_lead"],
-            q_options=meta["q_options"],
+            styles, number=chapter_no,
+            title=meta["title"], intro=meta["intro"],
+            q_lead=meta["q_lead"], q_options=meta["q_options"],
         ))
         story.append(Spacer(1, 10))
 
-        # All positions within this chapter, flowing through both columns
-        for f in findings_in_theme:
+        for f in in_theme:
             position_no += 1
-            lesson = lesson_for(f, position_no)
-            story.extend(lesson_story(styles, lesson))
+            story.extend(lesson_story(styles, lesson_for(f, position_no)))
 
-        # Push the next chapter to a new page so chapter titles aren't
-        # buried halfway down a column.
         story.append(PageBreak())
 
-    # ---- Closing Test page ----------------------------------------------
-    story.extend(test_page_story(styles, total_positions=position_no))
+    # ---- Chapter 5: Your Coaching Plan (Coach LLM output) --------------
+    if coaching_md.strip():
+        chapter_no += 1
+        story.extend(prose_chapter_story(
+            styles, number=chapter_no, title="Your Coaching Plan",
+            lead=(
+                "Here is the personal practice plan the coach drew up for "
+                "you, based on the games above. Treat it as a menu — start "
+                "with one item this week and build from there."
+            ),
+            body_flowables=markdown_to_flowables(coaching_md, styles),
+        ))
+        story.append(PageBreak())
+
+    # ---- Closing Test page ---------------------------------------------
+    if position_no > 0:
+        story.extend(test_page_story(styles, total_positions=position_no))
+    else:
+        # No engine analysis ran — still print a closing reflection page
+        # so the back of the book isn't empty.
+        story.extend(test_page_story(styles, total_positions=0))
 
     doc.build(story)
     return out
+
+
+# ----------------------------------------------------------------------
+# Backwards-compatible thin wrapper. Old callers passed `findings,
+# username, generated_at, output_path` positionally; preserve that.
+
+def build_key_positions_pdf(findings, username: str, generated_at: str,
+                            output_path: str | Path) -> Path:
+    """Compatibility shim — emits the tactics-only book (no prose chapters)."""
+    return build_workbook_pdf(
+        output_path,
+        username=username,
+        generated_at=generated_at,
+        findings=findings,
+    )

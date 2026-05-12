@@ -124,4 +124,18 @@ def book_styles() -> dict[str, ParagraphStyle]:
             "fill_in", fontName="Times-Bold", fontSize=11, leading=16,
             textColor=TEXT, spaceAfter=8,
         ),
+
+        # Markdown rendering inside prose chapters
+        "subsection_h": ParagraphStyle(
+            "subsection_h", fontName="Times-Bold", fontSize=13, leading=16,
+            textColor=TEXT, spaceBefore=8, spaceAfter=3,
+        ),
+        "subsection_sub": ParagraphStyle(
+            "subsection_sub", fontName="Times-Bold", fontSize=11, leading=14,
+            textColor=TEXT, spaceBefore=6, spaceAfter=2,
+        ),
+        "body_bullet": ParagraphStyle(
+            "body_bullet", fontName="Times-Roman", fontSize=10.5, leading=14,
+            textColor=TEXT, leftIndent=14, spaceAfter=2,
+        ),
     }

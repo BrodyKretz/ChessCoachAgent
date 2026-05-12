@@ -3,7 +3,6 @@ let ws = null;
 let currentAgent = null;
 let outputBlocks = {};
 let pdfPath = null;
-let positionsPdfPath = null;
 let currentQuestionId = null;
 let revisionCount = 0;
 
@@ -56,7 +55,6 @@ function handleMessage(msg) {
     case 'question': showQuestion(msg.id, msg.question, msg.options || []); break;
     case 'complete':
       pdfPath = msg.pdf_path;
-      positionsPdfPath = msg.positions_pdf_path || null;
       showComplete();
       break;
     case 'error':    addDebug('✗', msg.message); setStatus('error', 'Error'); break;
@@ -225,22 +223,13 @@ function showComplete() {
   hideSetupForm();
   document.getElementById('question-card').classList.remove('visible');
   document.getElementById('complete-card').classList.add('visible');
-  document.getElementById('interaction-header').textContent = 'Report Ready';
-  document.getElementById('download-positions-btn').style.display =
-    positionsPdfPath ? '' : 'none';
-  addDebug('✓', 'Session complete — report saved to outputs/ folder.');
-  if (positionsPdfPath) addDebug('✓', 'Key Positions workbook ready.');
+  document.getElementById('interaction-header').textContent = 'Workbook Ready';
+  addDebug('✓', 'Workbook saved to outputs/ folder.');
 }
 
 function downloadPdf() {
   if (!pdfPath) return;
   const filename = pdfPath.split('/').pop();
-  window.open(`/outputs/${filename}`, '_blank');
-}
-
-function downloadPositionsPdf() {
-  if (!positionsPdfPath) return;
-  const filename = positionsPdfPath.split('/').pop();
   window.open(`/outputs/${filename}`, '_blank');
 }
 

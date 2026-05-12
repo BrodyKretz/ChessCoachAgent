@@ -359,8 +359,6 @@ Three pages available:
 python main.py
 ```
 
-On first run, `TEACHING_GUIDE.pdf` is generated automatically.
-
 **Session flow:**
 1. Enter your Chess.com username (or press Enter if returning)
 2. Choose how many games to analyze (1–50, default 10)
@@ -377,9 +375,8 @@ On first run, `TEACHING_GUIDE.pdf` is generated automatically.
 | File | Description |
 |------|-------------|
 | `outputs/{username}_report_{timestamp}.md` | Full coaching report in Markdown |
-| `outputs/{username}_report_{timestamp}.pdf` | Same report as a formatted PDF |
-| `TEACHING_GUIDE.pdf` | One-time teaching guide explaining the project |
-| `data/users.db` | SQLite user memory database |
+| `outputs/{username}_workbook_{timestamp}.pdf` | Personalized coaching workbook (cover + game summary + analysis + tactics + plan) |
+| `data/users.db` | SQLite user memory database (local, gitignored) |
 
 ---
 
@@ -414,14 +411,22 @@ ChessCoachAgent/
 │   └── user_store.py       # SQLite CRUD for user preferences
 ├── tools/
 │   ├── chess_api.py        # Chess.com public API wrapper
+│   ├── engine_findings.py  # Stockfish blunder/missed-mate extraction
 │   └── pgn_parser.py       # PGN parsing + time pressure detection
 ├── utils/
 │   ├── character.py        # Coach King ASCII art + macOS TTS
 │   ├── events.py           # EventBus singleton (CLI/Web mode switching)
-│   └── pdf_generator.py    # ReportLab PDF generation
-├── data/                   # users.db created here at runtime
-├── outputs/                # Coaching reports saved here
-├── old_versions/           # Snapshots: V1, V2, V3
+│   ├── stockfish_engine.py # python-chess Stockfish wrapper
+│   └── book/               # Personalized workbook PDF builder
+│       ├── builder.py      # Top-level: assembles every chapter
+│       ├── layout.py       # Page templates, frames, chapter primitives
+│       ├── teaching.py     # Per-position teaching prose generator
+│       ├── markdown.py     # Markdown → ReportLab flowables
+│       ├── styles.py       # Design tokens + paragraph styles
+│       ├── board.py        # FEN → board Drawing
+│       └── assets/         # Chess Merida Unicode font
+├── data/                   # users.db created here at runtime (gitignored)
+├── outputs/                # Generated workbooks saved here
 ├── main.py                 # CLI entry point
 ├── run_web.py              # Web entry point
 ├── requirements.txt

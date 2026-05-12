@@ -20,3 +20,8 @@ data/users.db
 
 # Test scratch
 outputs/_test_*
+outputs/SAMPLE_*
+
+# Local reference PDFs used to mirror the workbook style
+LearningChess_Lessons_for_Beginners_-_Workbook_for_Students_Vol_1.pdf
+Mate-In-One-Move-level-1-1.pdf
