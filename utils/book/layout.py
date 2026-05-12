@@ -1,8 +1,13 @@
-"""Reusable page primitives: header, footer, cover, puzzle grid, solutions.
+"""Layout primitives for the personalized 'Key Positions' workbook.
 
-All generators compose these to keep the house style consistent. The
-canvas-level functions take a live `Canvas` and draw on the current page;
-they do NOT call showPage(). The caller controls page breaks.
+Mirrors the LearningChess - Lessons for Beginners workbook reference:
+two-column body, inline mini-boards, italic running header on each page,
+chapter openers with a numbered title, fill-in-the-blank move lines, and
+a closing 'Test' page with Score / Points / Correct / Time fields.
+
+Uses ReportLab Platypus (BaseDocTemplate + PageTemplate + Flowables) so
+content reflows naturally across columns and pages — same engine the
+reference uses in spirit.
 """
 
 from __future__ import annotations
@@ -10,9 +15,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
+from reportlab.graphics import renderPDF
 from reportlab.lib.units import inch
-from reportlab.pdfgen import canvas
-from reportlab.platypus import Frame, Paragraph
+from reportlab.platypus import (
+    BaseDocTemplate,
+    Frame,
+    HRFlowable,
+    KeepTogether,
+    NextPageTemplate,
+    PageBreak,
+    PageTemplate,
+    Paragraph,
+    Spacer,
+)
+from reportlab.platypus.flowables import Flowable
 
 from .board import render_board
 from .styles import (
@@ -25,264 +41,234 @@ from .styles import (
     TEXT_FONT,
     TEXT_FONT_BOLD,
     TEXT_MUTED,
-    book_styles,
 )
-from .teaching import TeachingBlock
-from .types import BookPuzzle
 
 
 PAGE_W, PAGE_H = PAGE_SIZE
-PUZZLES_PER_PAGE = 9
+
+# --- Two-column geometry --------------------------------------------------
+COL_GAP = 22
+COL_W = (CONTENT_W - COL_GAP) / 2
+
+# Inline board size for two-column body content (matches reference: small,
+# fits comfortably inside one column).
+BOARD_SIZE = COL_W - 6
+SMALL_BOARD_SIZE = 150
+
+HEADER_BAND_H = 22       # space reserved at the top for the italic running header
+FOOTER_BAND_H = 22       # space at the bottom for the page number
+
+BODY_TOP = PAGE_H - MARGIN - HEADER_BAND_H
+BODY_BOTTOM = MARGIN + FOOTER_BAND_H
+BODY_H = BODY_TOP - BODY_BOTTOM
 
 
-def header(c: canvas.Canvas, brand: str, title: str) -> None:
-    """Brand mark top-left + centered title."""
-    brand_y = PAGE_H - MARGIN + 6
-    c.setFillColor(TEXT)
-    c.setFont(TEXT_FONT_BOLD, 11)
-    c.drawString(MARGIN, brand_y, brand)
-    c.setFillColor(GOLD)
-    c.rect(MARGIN, brand_y - 5, 28, 2, stroke=0, fill=1)
+# --- Custom flowable wrapping a chess diagram ----------------------------
 
-    c.setFillColor(TEXT)
-    c.setFont(TEXT_FONT_BOLD, 22)
-    c.drawCentredString(PAGE_W / 2, PAGE_H - MARGIN - 8, title)
+class BoardFlowable(Flowable):
+    """A chess diagram you can drop straight into a Platypus story.
 
-
-def footer(c: canvas.Canvas, page_num: int, total: int) -> None:
-    c.setFillColor(TEXT_MUTED)
-    c.setFont(TEXT_FONT, 9)
-    c.drawCentredString(PAGE_W / 2, MARGIN / 2, f"{page_num} / {total}")
-
-
-def cover(c: canvas.Canvas, title: str, subtitle: str, player: str, period: str) -> None:
-    """A book cover. Big title, accent rule, byline, period."""
-    # Top accent block
-    c.setFillColor(GOLD)
-    c.rect(MARGIN, PAGE_H - MARGIN - 8, 80, 4, stroke=0, fill=1)
-
-    # Series tag
-    c.setFillColor(TEXT_MUTED)
-    c.setFont(TEXT_FONT_BOLD, 10)
-    c.drawString(MARGIN, PAGE_H - MARGIN - 28, "CHESS COACH · PERSONALIZED LESSON")
-
-    # Title (large, multi-line ready)
-    c.setFillColor(TEXT)
-    c.setFont(TEXT_FONT_BOLD, 42)
-    c.drawString(MARGIN, PAGE_H / 2 + 30, title)
-
-    # Subtitle
-    c.setFillColor(TEXT)
-    c.setFont(TEXT_FONT, 18)
-    c.drawString(MARGIN, PAGE_H / 2, subtitle)
-
-    # Divider
-    c.setStrokeColor(RULE)
-    c.setLineWidth(0.5)
-    c.line(MARGIN, PAGE_H / 2 - 28, PAGE_W - MARGIN, PAGE_H / 2 - 28)
-
-    # Byline + period (bottom block)
-    by_y = MARGIN + 60
-    c.setFillColor(TEXT_MUTED)
-    c.setFont(TEXT_FONT, 10)
-    c.drawString(MARGIN, by_y + 18, "BUILT FROM YOUR OWN GAMES")
-    c.setFillColor(TEXT)
-    c.setFont(TEXT_FONT_BOLD, 16)
-    c.drawString(MARGIN, by_y, player)
-    c.setFillColor(TEXT_MUTED)
-    c.setFont(TEXT_FONT, 11)
-    c.drawString(MARGIN, by_y - 16, period)
-
-
-def puzzle_grid(c: canvas.Canvas, puzzles: Sequence[BookPuzzle], start_num: int) -> None:
-    """3x3 grid of boards with 'N. Side to play' captions."""
-    cols, rows = 3, 3
-    cell_gap_x = 18
-    cell_gap_y = 28
-    grid_top = PAGE_H - MARGIN - 56
-
-    cell_w = (CONTENT_W - cell_gap_x * (cols - 1)) / cols
-    board_size = cell_w
-    caption_h = 14
-    cell_h = board_size + caption_h + 4
-
-    for i, p in enumerate(puzzles[: cols * rows]):
-        r = i // cols
-        col = i % cols
-        x = MARGIN + col * (cell_w + cell_gap_x)
-        y_top = grid_top - r * (cell_h + cell_gap_y)
-        y_board = y_top - board_size
-
-        d = render_board(p.fen, side=p.side_to_move, size=board_size)
-        d.drawOn(c, x, y_board)
-
-        c.setFillColor(TEXT)
-        c.setFont(TEXT_FONT, 10.5)
-        label = f"{start_num + i}. {'White' if p.side_to_move == 'white' else 'Black'} to play"
-        c.drawCentredString(x + board_size / 2, y_board - caption_h, label)
-
-
-def teaching_pair(c: canvas.Canvas,
-                  pair: Sequence[tuple[BookPuzzle, TeachingBlock]]) -> None:
-    """Draw up to two teaching cards stacked on one page.
-
-    Each card: board on the left, heading + 3-4 short paragraphs on the right.
-    Mirrors the LearningChess workbook flow (diagram → prose → 'In Chess Speak').
+    The reference workbook places boards inline between paragraphs, often
+    centered within a column. This flowable reports its own width/height
+    so Platypus knows how much vertical space to reserve.
     """
-    styles = book_styles()
-    top = PAGE_H - MARGIN - 56            # leave space for the running header
-    card_h = (top - MARGIN) / 2 - 12      # gap between cards
-    board_size = min(card_h - 12, 230)
-    text_x = MARGIN + board_size + 22
-    text_w = CONTENT_W - board_size - 22
 
-    for i, (puz, block) in enumerate(pair[:2]):
-        # Position card
-        y_card_top = top - i * (card_h + 24)
-        y_board = y_card_top - board_size
+    def __init__(self, fen: str, side: str = "white",
+                 size: float = SMALL_BOARD_SIZE, h_align: str = "CENTER"):
+        super().__init__()
+        self.fen = fen
+        self.side = side
+        self.size = size
+        self.width = size
+        self.height = size
+        self.hAlign = h_align
 
-        # Board
-        d = render_board(puz.fen, side=puz.side_to_move, size=board_size)
-        d.drawOn(c, MARGIN, y_board)
+    def wrap(self, avail_w, avail_h):
+        # If the requested size exceeds the column, shrink to fit.
+        if self.size > avail_w:
+            self.size = avail_w
+            self.width = self.height = self.size
+        return (self.width, self.height)
 
-        # Right column heading + accent rule
-        c.setFillColor(TEXT)
-        c.setFont(TEXT_FONT_BOLD, 14)
-        c.drawString(text_x, y_card_top - 14, block.heading)
-        c.setStrokeColor(GOLD)
-        c.setLineWidth(1.2)
-        c.line(text_x, y_card_top - 22, text_x + 32, y_card_top - 22)
-
-        # Body prose (Paragraph + Frame so we get wrapping for free)
-        story_lines = [
-            f"{block.opener} {block.context}",
-            block.played,
-            block.solution,
-        ]
-        if block.chess_speak:
-            story_lines.append(block.chess_speak)
-
-        flow = [Paragraph(line, styles["body"]) for line in story_lines]
-
-        frame = Frame(
-            text_x, y_board - 4,                  # x, y of bottom-left
-            text_w, y_card_top - 36 - (y_board - 4),  # available width & height
-            leftPadding=0, rightPadding=0,
-            topPadding=8, bottomPadding=4,
-            showBoundary=0,
-        )
-        frame.addFromList(flow, c)
-
-        # Faint divider between the two cards
-        if i == 0 and len(pair) > 1:
-            divider_y = y_board - 12
-            c.setStrokeColor(RULE)
-            c.setLineWidth(0.4)
-            c.line(MARGIN, divider_y, MARGIN + CONTENT_W, divider_y)
+    def draw(self):
+        d = render_board(self.fen, side=self.side, size=self.size)
+        renderPDF.draw(d, self.canv, 0, 0)
 
 
-def progress_page(c: canvas.Canvas, total_positions: int) -> None:
-    """Closing 'Your Progress' page in the spirit of the workbook's test footer."""
-    c.setFillColor(TEXT)
-    c.setFont(TEXT_FONT_BOLD, 28)
-    c.drawString(MARGIN, PAGE_H - MARGIN - 30, "Your Progress")
+# --- Static page furniture (header / footer / cover) ---------------------
 
-    c.setStrokeColor(GOLD)
-    c.setLineWidth(2)
-    c.line(MARGIN, PAGE_H - MARGIN - 38, MARGIN + 60, PAGE_H - MARGIN - 38)
-
-    c.setFillColor(TEXT_MUTED)
-    c.setFont(TEXT_FONT, 10.5)
-    c.drawString(MARGIN, PAGE_H - MARGIN - 58,
-                 f"Replay the {total_positions} position"
-                 f"{'s' if total_positions != 1 else ''} above on a board. "
-                 "Track how you did:")
-
-    # 4 labeled lines for the student to fill in (Score / Correct / Time / Notes)
-    line_y = PAGE_H - MARGIN - 110
-    label_w = 110
-    for label in ("Score:", "Correct:", "Time:", "Notes:"):
-        c.setFillColor(TEXT)
-        c.setFont(TEXT_FONT_BOLD, 12)
-        c.drawString(MARGIN, line_y, label)
-        c.setStrokeColor(RULE)
-        c.setLineWidth(0.6)
-        c.line(MARGIN + label_w, line_y - 2,
-               MARGIN + CONTENT_W, line_y - 2)
-        line_y -= 36
-
-    # Extra ruled lines for the Notes block
-    for _ in range(4):
-        c.line(MARGIN, line_y - 2, MARGIN + CONTENT_W, line_y - 2)
-        line_y -= 20
+def draw_running_header(canvas, doc) -> None:
+    """Italic 'Chess Coach' kicker on the left, volume tag on the right."""
+    canvas.saveState()
+    canvas.setFont("Times-Italic", 10)
+    canvas.setFillColor(TEXT_MUTED)
+    y = PAGE_H - MARGIN + 4
+    canvas.drawString(MARGIN, y, "Chess Coach — Personalized Lessons")
+    canvas.drawRightString(PAGE_W - MARGIN, y,
+                           "Volume: Key Positions")
+    canvas.setFont(TEXT_FONT, 9)
+    canvas.drawCentredString(PAGE_W / 2, MARGIN - 10, str(doc.page))
+    canvas.restoreState()
 
 
-def solutions_intro(c: canvas.Canvas) -> None:
-    """Section opener for the solutions chapter."""
-    c.setFillColor(TEXT)
-    c.setFont(TEXT_FONT_BOLD, 28)
-    c.drawString(MARGIN, PAGE_H - MARGIN - 30, "Solutions")
-
-    c.setStrokeColor(GOLD)
-    c.setLineWidth(2)
-    c.line(MARGIN, PAGE_H - MARGIN - 38, MARGIN + 60, PAGE_H - MARGIN - 38)
-
-    c.setFillColor(TEXT_MUTED)
-    c.setFont(TEXT_FONT, 10.5)
-    c.drawString(MARGIN, PAGE_H - MARGIN - 58,
-                 "Each solution is the move you missed in the game itself.")
+def draw_cover_chrome(canvas, doc) -> None:
+    """Cover page chrome — gold tab + series tag. No running header."""
+    canvas.saveState()
+    # Gold accent bar
+    canvas.setFillColor(GOLD)
+    canvas.rect(MARGIN, PAGE_H - MARGIN - 8, 80, 4, stroke=0, fill=1)
+    # Series tag below the bar
+    canvas.setFillColor(TEXT_MUTED)
+    canvas.setFont(TEXT_FONT_BOLD, 10)
+    canvas.drawString(MARGIN, PAGE_H - MARGIN - 28,
+                      "CHESS COACH · PERSONALIZED LESSON")
+    canvas.restoreState()
 
 
-def solutions_block(c: canvas.Canvas, puzzles: Sequence[BookPuzzle],
-                    start_num: int, y_start: float) -> float:
-    """Draw a two-column list of (number, move, context). Returns next y."""
-    col_gap = 24
-    col_w = (CONTENT_W - col_gap) / 2
-    line_h = 32
-    n = len(puzzles)
-    rows_per_col = (n + 1) // 2
+def build_doc(out_path: str, title: str, author: str) -> BaseDocTemplate:
+    """Construct the document with cover + two-column body templates."""
+    doc = BaseDocTemplate(
+        str(out_path),
+        pagesize=PAGE_SIZE,
+        leftMargin=MARGIN, rightMargin=MARGIN,
+        topMargin=MARGIN + HEADER_BAND_H,
+        bottomMargin=MARGIN + FOOTER_BAND_H,
+        title=title, author=author,
+    )
 
-    for i, p in enumerate(puzzles):
-        col = i // rows_per_col
-        row = i % rows_per_col
-        x = MARGIN + col * (col_w + col_gap)
-        y = y_start - row * line_h
+    cover_frame = Frame(
+        MARGIN, MARGIN,
+        CONTENT_W, PAGE_H - 2 * MARGIN,
+        leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0,
+        showBoundary=0, id="cover",
+    )
 
-        # Puzzle number (gold, bold, hanging)
-        c.setFillColor(GOLD)
-        c.setFont(TEXT_FONT_BOLD, 11)
-        c.drawString(x, y, f"{start_num + i}.")
+    left_frame = Frame(
+        MARGIN, BODY_BOTTOM,
+        COL_W, BODY_H,
+        leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0,
+        showBoundary=0, id="left",
+    )
+    right_frame = Frame(
+        MARGIN + COL_W + COL_GAP, BODY_BOTTOM,
+        COL_W, BODY_H,
+        leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0,
+        showBoundary=0, id="right",
+    )
 
-        # Move in SAN
-        c.setFillColor(TEXT)
-        c.setFont(TEXT_FONT_BOLD, 12)
-        c.drawString(x + 22, y, p.best_san)
-
-        # Context: opening + opponent
-        ctx_bits = []
-        if p.opening:
-            ctx_bits.append(p.opening)
-        if p.opponent and p.game_date:
-            ctx_bits.append(f"vs {p.opponent}, {p.game_date}")
-        elif p.opponent:
-            ctx_bits.append(f"vs {p.opponent}")
-        ctx = " · ".join(ctx_bits)
-        if ctx:
-            c.setFillColor(TEXT_MUTED)
-            c.setFont(TEXT_FONT, 9)
-            c.drawString(x + 22, y - 12, _truncate(ctx, 52))
-
-    return y_start - rows_per_col * line_h
+    cover_template = PageTemplate(
+        id="cover", frames=[cover_frame], onPage=draw_cover_chrome,
+    )
+    body_template = PageTemplate(
+        id="body", frames=[left_frame, right_frame], onPage=draw_running_header,
+    )
+    doc.addPageTemplates([cover_template, body_template])
+    return doc
 
 
-def _truncate(s: str, n: int) -> str:
-    return s if len(s) <= n else s[: n - 1].rstrip() + "…"
+# --- Cover content flowables --------------------------------------------
 
+def cover_story(styles: dict, title: str, subtitle: str,
+                player: str, period: str) -> list:
+    """Flowables for the cover page (uses the cover frame)."""
+    return [
+        Spacer(1, 2.4 * inch),
+        Paragraph(title, styles["cover_title"]),
+        Paragraph(subtitle, styles["cover_subtitle"]),
+        Spacer(1, 0.18 * inch),
+        HRFlowable(width=CONTENT_W, thickness=0.4, color=RULE),
+        Spacer(1, 2.0 * inch),
+        Paragraph("BUILT FROM YOUR OWN GAMES", styles["kicker_dim"]),
+        Paragraph(player, styles["cover_player"]),
+        Paragraph(period, styles["body_muted"]),
+        NextPageTemplate("body"),
+        PageBreak(),
+    ]
+
+
+# --- Section opener (chapter) -------------------------------------------
+
+def section_opener_story(styles: dict, number: int, title: str,
+                         intro: str, q_lead: str | None,
+                         q_options: list[str]) -> list:
+    """Chapter opener: '5. Mate in One Move' style heading + intro + Q1."""
+    parts: list = [
+        Paragraph(f"{number}. {title}", styles["chapter"]),
+        Spacer(1, 6),
+        Paragraph(intro, styles["body"]),
+    ]
+    if q_lead and q_options:
+        parts.append(Spacer(1, 8))
+        parts.append(Paragraph(f"<b>Q1. {q_lead}</b>", styles["body"]))
+        parts.append(Spacer(1, 2))
+        for i, opt in enumerate(q_options, 1):
+            parts.append(Paragraph(f"{i}. {opt}", styles["body_indent"]))
+    return parts
+
+
+# --- Lesson (one position) ----------------------------------------------
 
 @dataclass(frozen=True)
-class PageCounter:
-    """Inflates 1-indexed page numbers as we draw."""
-    total: int
+class Lesson:
+    """All copy + data needed to typeset one position lesson."""
+    heading: str            # e.g. "Position 1 — White to play"
+    intro: str              # 1-2 sentences setting up the position
+    fen: str
+    side: str               # 'white' | 'black'
+    prompt: str             # e.g. "Find the best move."
+    fill_in: str            # e.g. "1. __________" or "1. … __________"
+    explanation: str        # post-answer prose (what was played + best move)
 
-    def label(self, page_num: int) -> str:
-        return f"{page_num} / {self.total}"
+
+def lesson_story(styles: dict, lesson: Lesson) -> list:
+    """Flowables for one lesson, kept together so it doesn't split mid-board."""
+    # Use a column-narrowed board so it fits comfortably even after padding.
+    board_size = min(BOARD_SIZE, 160)
+    return [
+        KeepTogether([
+            Paragraph(f"<b>{lesson.heading}</b>", styles["lesson_head"]),
+            Spacer(1, 3),
+            Paragraph(lesson.intro, styles["body"]),
+            Spacer(1, 4),
+            BoardFlowable(lesson.fen, side=lesson.side, size=board_size),
+            Spacer(1, 4),
+            Paragraph(lesson.prompt, styles["body"]),
+            Paragraph(lesson.fill_in, styles["fill_in"]),
+        ]),
+        Spacer(1, 4),
+        Paragraph(lesson.explanation, styles["body"]),
+        Spacer(1, 14),
+    ]
+
+
+# --- Closing 'Test' page ------------------------------------------------
+
+def test_page_story(styles: dict, total_positions: int) -> list:
+    """Closing test/scoring page (Score / Points / Correct / Time)."""
+    fill_w = 140  # px of underline
+    score_line = "<font color='#7a7a7a'>" + ("_" * 22) + "</font>"
+
+    label_lines = [
+        ("Score:",   score_line + " %"),
+        ("Points:",  score_line),
+        ("Correct:", score_line),
+        ("Time:",    score_line),
+    ]
+
+    parts: list = [
+        Paragraph("Test", styles["chapter_centered"]),
+        Spacer(1, 8),
+        Paragraph(
+            f"Replay the {total_positions} position"
+            f"{'s' if total_positions != 1 else ''} above on a board and "
+            "see how you do. Track your result below.",
+            styles["body"]),
+        Spacer(1, 20),
+    ]
+    for label, line in label_lines:
+        parts.append(Paragraph(
+            f"<b>{label}</b>&nbsp;&nbsp;&nbsp;&nbsp;{line}",
+            styles["body_score"],
+        ))
+        parts.append(Spacer(1, 10))
+    return parts

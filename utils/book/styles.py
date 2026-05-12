@@ -66,30 +66,62 @@ def register_fonts() -> None:
 # --- Paragraph styles ---------------------------------------------------
 
 def book_styles() -> dict[str, ParagraphStyle]:
-    """Return the named paragraph styles used throughout the book."""
+    """Named paragraph styles for the workbook-style PDF.
+
+    Voice/visual target: LearningChess - Lessons for Beginners Vol 1.
+    Times-family serif body, bold for chapter and lesson headings, italic
+    running header. Fill-in lines use a monospaced underline.
+    """
     return {
-        "page_title": ParagraphStyle(
-            "page_title", fontName=TEXT_FONT, fontSize=22, leading=28,
-            textColor=TEXT, alignment=1, spaceAfter=18,
+        # Cover-page styles
+        "cover_title": ParagraphStyle(
+            "cover_title", fontName="Times-Bold", fontSize=42, leading=46,
+            textColor=TEXT, spaceAfter=4,
         ),
-        "chapter_title": ParagraphStyle(
-            "chapter_title", fontName=TEXT_FONT_BOLD, fontSize=28, leading=34,
-            textColor=TEXT, spaceAfter=16,
+        "cover_subtitle": ParagraphStyle(
+            "cover_subtitle", fontName="Times-Roman", fontSize=18, leading=22,
+            textColor=TEXT, spaceAfter=4,
         ),
-        "section": ParagraphStyle(
-            "section", fontName=TEXT_FONT_BOLD, fontSize=14, leading=18,
-            textColor=TEXT, spaceBefore=12, spaceAfter=8,
+        "cover_player": ParagraphStyle(
+            "cover_player", fontName="Times-Bold", fontSize=16, leading=20,
+            textColor=TEXT, spaceAfter=4,
+        ),
+        "kicker_dim": ParagraphStyle(
+            "kicker_dim", fontName="Times-Bold", fontSize=9, leading=12,
+            textColor=TEXT_MUTED, spaceAfter=2,
+        ),
+
+        # Body styles for the two-column lesson pages
+        "chapter": ParagraphStyle(
+            "chapter", fontName="Times-Bold", fontSize=20, leading=24,
+            textColor=TEXT, spaceBefore=0, spaceAfter=6,
+        ),
+        "chapter_centered": ParagraphStyle(
+            "chapter_centered", fontName="Times-Bold", fontSize=18, leading=22,
+            textColor=TEXT, alignment=1, spaceAfter=10,
+        ),
+        "lesson_head": ParagraphStyle(
+            "lesson_head", fontName="Times-Bold", fontSize=11, leading=14,
+            textColor=TEXT, spaceAfter=2,
         ),
         "body": ParagraphStyle(
-            "body", fontName=TEXT_FONT, fontSize=10.5, leading=15,
+            "body", fontName="Times-Roman", fontSize=10.5, leading=14,
+            textColor=TEXT, spaceAfter=4, alignment=4,   # 4 = justified
+        ),
+        "body_muted": ParagraphStyle(
+            "body_muted", fontName="Times-Roman", fontSize=10.5, leading=14,
+            textColor=TEXT_MUTED, spaceAfter=4,
+        ),
+        "body_indent": ParagraphStyle(
+            "body_indent", fontName="Times-Roman", fontSize=10.5, leading=14,
+            textColor=TEXT, leftIndent=14, spaceAfter=2,
+        ),
+        "body_score": ParagraphStyle(
+            "body_score", fontName="Times-Roman", fontSize=12, leading=18,
+            textColor=TEXT, spaceAfter=4,
+        ),
+        "fill_in": ParagraphStyle(
+            "fill_in", fontName="Times-Bold", fontSize=11, leading=16,
             textColor=TEXT, spaceAfter=8,
-        ),
-        "caption": ParagraphStyle(
-            "caption", fontName=TEXT_FONT, fontSize=10, leading=12,
-            textColor=TEXT, alignment=1, spaceBefore=6,
-        ),
-        "muted": ParagraphStyle(
-            "muted", fontName=TEXT_FONT, fontSize=9, leading=12,
-            textColor=TEXT_MUTED,
         ),
     }

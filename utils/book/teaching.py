@@ -1,124 +1,111 @@
-"""Workbook-style teaching prose for each Finding.
+"""Workbook-style teaching copy for each Finding.
 
-The voice mirrors the LearningChess beginner workbook: direct, conversational,
-second-person, builds intuition before stating the rule. Templates rotate so
-consecutive pages don't read identically.
+Voice target: LearningChess - Lessons for Beginners Vol 1. Direct,
+second-person, builds intuition before stating the rule. Embeds the
+"in Chess Speak" callout parenthetically in the prose rather than as a
+separate box, matching the reference.
 
-Pure functions, no I/O — easy to unit-test and to reuse from anywhere.
+Pure functions, no I/O.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from .layout import Lesson
 
 
-# Rotated opener lines keyed by position index (mod len).
+# Rotated intro openers keyed by position index so consecutive lessons
+# don't all start with the same sentence.
 _BLUNDER_OPENERS = [
     "Take a look at this position.",
     "Let's study this position carefully.",
-    "Here's a critical moment from one of your games.",
+    "Here is a critical moment from your game.",
     "This position needs a closer look.",
 ]
-
 _MATE_OPENERS = [
-    "Here's a position where a checkmate was hiding.",
-    "Take a careful look — there was a forced mate on the board.",
-    "Mate was right there. Did you spot it during the game?",
+    "Here is a position where checkmate was hiding.",
+    "Look carefully — there was a forced mate on the board.",
+    "Mate was right there. Did you see it during the game?",
     "A mating chance slipped by here. Let's find it together.",
 ]
 
 
-def _opener(theme: str, idx: int) -> str:
+def _opener(theme: str, idx_zero: int) -> str:
     pool = _MATE_OPENERS if theme == "missed_mate" else _BLUNDER_OPENERS
-    return pool[idx % len(pool)]
+    return pool[idx_zero % len(pool)]
 
 
-def _ctx_phrase(opponent: str | None, move_number: int) -> str:
+def _context_phrase(opponent: str | None, move_number: int) -> str:
+    """One sentence locating the position in the user's game history."""
     if opponent:
         return f"It came up against {opponent} on move {move_number}."
     return f"It came up on move {move_number}."
 
 
-def _played_clause(played_san: str, theme: str, cp_loss: int) -> str:
-    """One sentence describing what was played and why it didn't work."""
+def _explain_played(played_san: str, theme: str, cp_loss: int) -> str:
+    """One clause: what you played and why it didn't work."""
     if theme == "missed_mate":
         return (
-            f"You played <b>{played_san}</b>, which is a reasonable-looking move — "
-            f"but it lets the win slip away."
+            f"You played <b>{played_san}</b>, which looks reasonable — "
+            "but it lets the win slip away."
         )
-    # A cp_loss above ~1500 almost always means the position swung from playable
-    # to lost — usually a forced losing sequence rather than literal material loss.
     if cp_loss >= 1500:
         return (
-            f"You played <b>{played_san}</b> — but this walks into a forced "
-            f"losing sequence the engine sees several moves out."
+            f"You played <b>{played_san}</b>, which walks into a forced "
+            "losing sequence the engine sees several moves out."
         )
-    pawns = round(cp_loss / 100)
+    pawns = max(1, round(cp_loss / 100))
     pawn_word = "pawn" if pawns == 1 else "pawns"
-    if cp_loss >= 500:
-        return (
-            f"You played <b>{played_san}</b> — but this loses around "
-            f"{pawns} {pawn_word} of material to best play."
-        )
     return (
-        f"You played <b>{played_san}</b>. The engine sees this as roughly "
-        f"a {pawns}-{pawn_word} mistake."
+        f"You played <b>{played_san}</b>, which loses around "
+        f"{pawns} {pawn_word} to best play."
     )
 
 
-def _solution_clause(best_san: str, theme: str) -> str:
-    if theme == "missed_mate":
-        return (
-            f"The winning move was <b>{best_san}</b>. "
-            "It puts the king in check with no escape — checkmate."
-        )
-    return (
-        f"The best move was <b>{best_san}</b>. "
-        "Play through it on a board and ask yourself why it works."
-    )
+def _explain_best(best_san: str, theme: str) -> str:
+    """One clause: the best move + a parenthetical 'in Chess Speak' if it fits."""
+    base = f"The best move was <b>{best_san}</b>."
 
-
-def _chess_speak(theme: str, best_san: str) -> str | None:
-    """Optional 'In Chess Speak' callout when the move tells us something concrete."""
     if theme == "missed_mate":
-        return (
-            "<i>In Chess Speak:</i> a check the opponent cannot answer is called "
-            "<b>checkmate</b> — the game ends instantly."
+        return base + (
+            " It puts the king in check with no escape — checkmate, "
+            "and the game would have ended right there."
         )
+    if best_san.endswith("#"):
+        return base + " That move is checkmate — the game ends."
     if best_san.endswith("+"):
-        return (
-            "<i>In Chess Speak:</i> when a move attacks the king, we call it a "
-            "<b>check</b> — marked by the (+) sign."
+        return base + (
+            " The (+) sign means the move gives check — Chess Speak "
+            "for attacking the enemy king."
         )
     if "x" in best_san:
-        return (
-            "<i>In Chess Speak:</i> a move that takes an enemy piece is called a "
-            "<b>capture</b> — written with an x in the middle."
+        return base + (
+            " The x in the middle is Chess Speak for a capture: this "
+            "move takes an enemy piece."
         )
-    return None
+    return base + " Set the position up on a board and play through why it works."
 
 
-@dataclass(frozen=True)
-class TeachingBlock:
-    """Rendered prose for one position. Strings are ReportLab-paragraph-ready."""
-    heading: str                # e.g. "Position 3 — Black to play"
-    opener: str                 # 1 sentence
-    context: str                # 1 sentence
-    played: str                 # 1 sentence, contains <b>played</b>
-    solution: str               # 1 sentence, contains <b>best</b>
-    chess_speak: str | None     # 0-1 sentence callout
-
-
-def teaching_for(finding, idx: int) -> TeachingBlock:
-    """Build the teaching block for one Finding (1-indexed `idx`)."""
+def lesson_for(finding, idx: int) -> Lesson:
+    """Build the full Lesson record for one Finding (1-indexed)."""
     side_label = "White to play" if finding.side_to_move == "white" else "Black to play"
     heading = f"Position {idx} — {side_label}"
 
-    return TeachingBlock(
+    # Workbook convention: "1. ..." prefix for a black move, "1." for white.
+    fill_prefix = "1." if finding.side_to_move == "white" else "1. ..."
+    fill_in = f"{fill_prefix} __________"
+
+    intro = f"{_opener(finding.theme, idx - 1)} {_context_phrase(finding.opponent, finding.move_number)}"
+    explanation = (
+        f"{_explain_played(finding.played_san, finding.theme, finding.cp_loss)} "
+        f"{_explain_best(finding.best_san, finding.theme)}"
+    )
+
+    return Lesson(
         heading=heading,
-        opener=_opener(finding.theme, idx - 1),
-        context=_ctx_phrase(finding.opponent, finding.move_number),
-        played=_played_clause(finding.played_san, finding.theme, finding.cp_loss),
-        solution=_solution_clause(finding.best_san, finding.theme),
-        chess_speak=_chess_speak(finding.theme, finding.best_san),
+        intro=intro,
+        fen=finding.fen,
+        side=finding.side_to_move,
+        prompt="Find the best move.",
+        fill_in=fill_in,
+        explanation=explanation,
     )
