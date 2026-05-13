@@ -98,6 +98,19 @@ function renderPuzzles(puzzles) {
     card.className = 'puzzle-card';
     card.id = `puzzle-card-${i}`;
 
+    /* ── Game-origin header (top of card) ── */
+    const header = document.createElement('div');
+    header.className = 'puzzle-game-header';
+    const titleBits = [`Position ${i + 1}`];
+    if (p.opponent) titleBits.push(`vs ${p.opponent}`);
+    if (p.move_num) titleBits.push(`move ${p.move_num}`);
+    header.textContent = titleBits.join(' · ');
+    card.appendChild(header);
+
+    /* ── Body (board + info) ── */
+    const body = document.createElement('div');
+    body.className = 'puzzle-body';
+
     /* ── Board ── */
     const boardEl = document.createElement('div');
     boardEl.id = `puzzle-board-${i}`;
@@ -106,26 +119,19 @@ function renderPuzzles(puzzles) {
     const info = document.createElement('div');
     info.className = 'puzzle-info';
 
-    const themeRow = document.createElement('div');
-    themeRow.style.cssText = 'display:flex;align-items:center;gap:6px;';
     const theme = document.createElement('div');
     theme.className = 'puzzle-theme';
     theme.textContent = p.theme || 'Tactic';
-    themeRow.appendChild(theme);
-    if (p.from_game) {
-      const badge = document.createElement('div');
-      badge.textContent = '🎯 From your games';
-      badge.style.cssText = 'font-size:10px;color:var(--coach-color);font-weight:700;letter-spacing:.3px;';
-      themeRow.appendChild(badge);
-    }
 
     const turn = document.createElement('div');
     turn.className = 'puzzle-turn';
-    turn.textContent = `${p.side_to_move === 'white' ? 'White' : 'Black'} to move`;
+    turn.textContent = `${p.side_to_move === 'white' ? 'White' : 'Black'} to move — find the best move.`;
 
     const hint = document.createElement('div');
     hint.className = 'puzzle-hint';
-    hint.textContent = p.hint || 'Click a piece to see legal moves, then click the destination.';
+    hint.textContent = p.you_played
+      ? `You played ${p.you_played} during the game. There was something stronger here.`
+      : (p.hint || 'Click a piece to see legal moves, then click the destination.');
 
     const feedback = document.createElement('div');
     feedback.className = 'puzzle-feedback';
@@ -135,8 +141,9 @@ function renderPuzzles(puzzles) {
     tries.className = 'puzzle-tries';
     tries.id = `puzzle-tries-${i}`;
 
-    info.append(themeRow, turn, hint, feedback, tries);
-    card.append(boardEl, info);
+    info.append(theme, turn, hint, feedback, tries);
+    body.append(boardEl, info);
+    card.append(body);
     list.appendChild(card);
 
     /* ── Create interactive board ── */

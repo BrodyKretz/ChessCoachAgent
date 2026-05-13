@@ -8,86 +8,85 @@
   <link rel="stylesheet" href="/static/chess.css" />
   <style>
     html, body { overflow: auto; height: auto; }
-    #app { display: block; height: auto; }
+    #app { display: block; height: auto; max-width: 1100px; padding: 14px; }
   </style>
 </head>
 <body>
-<div id="app" style="overflow:auto;min-height:100vh;">
+<div id="app">
 
-  <!-- Nav -->
-  <nav class="site-nav">
-    <a href="/" class="nav-link">♟ Coaching Session</a>
-    <a href="/practice" class="nav-link active">Puzzles & Openings</a>
-    <a href="/play" class="nav-link">Play vs Coach King</a>
-    <a href="/reports" class="nav-link">Previous Reports</a>
-  </nav>
-
-  <!-- Username bar -->
-  <div style="max-width:860px;margin:16px auto 0;padding:0 16px;">
-    <div class="panel" style="flex-direction:row;align-items:center;gap:12px;padding:12px 16px;">
-      <label style="font-size:12px;color:var(--text-dim);white-space:nowrap;">Chess.com username</label>
-      <input type="text" id="username-input" placeholder="JagerBombEnjoyer" style="max-width:220px;" />
-      <button class="btn btn-primary" onclick="loadAll()" id="load-btn">Load Practice</button>
-      <span id="load-status" style="font-size:12px;color:var(--text-dim);"></span>
+  <!-- ── Top bar (matches coaching page) ───────────────────────── -->
+  <header id="topbar">
+    <div class="topbar-brand">
+      <span class="brand-icon">♟</span>
+      <span class="brand-name">Chess Coach</span>
     </div>
+    <nav class="topbar-nav">
+      <a href="/" class="nav-link">Coaching</a>
+      <a href="/practice" class="nav-link active">Practice</a>
+      <a href="/play" class="nav-link">Play</a>
+      <a href="/reports" class="nav-link">Reports</a>
+    </nav>
+    <div class="topbar-status">
+      <span id="status-text">Idle</span>
+      <div id="status-dot"></div>
+    </div>
+  </header>
+
+  <!-- ── Source bar ────────────────────────────────────────────── -->
+  <div class="panel" style="flex-direction:row;align-items:center;gap:12px;padding:14px 18px;margin-top:10px;">
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <label style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);">Source</label>
+      <span style="font-size:11px;color:var(--text-faint);">Puzzles are pulled from your real Chess.com games</span>
+    </div>
+    <div style="flex:1;"></div>
+    <input type="text" id="username-input" placeholder="Chess.com username" style="max-width:240px;" />
+    <button class="btn btn-primary" onclick="loadAll()" id="load-btn">Load from My Games</button>
+    <span id="load-status" style="font-size:11px;color:var(--text-dim);"></span>
   </div>
 
-  <!-- Tab bar -->
-  <div style="max-width:860px;margin:12px auto 0;padding:0 16px;">
-    <div class="panel" style="gap:0;">
+  <!-- ── Tabs ──────────────────────────────────────────────────── -->
+  <div class="panel" style="gap:0;margin-top:10px;">
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-puzzles"  onclick="switchTab('puzzles')">Tactics Puzzles</button>
+      <button class="tab-btn"        id="tab-openings" onclick="switchTab('openings')">Opening Trainer</button>
+    </div>
 
-      <div class="tab-bar">
-        <button class="tab-btn active" id="tab-puzzles"   onclick="switchTab('puzzles')">Tactics Puzzles</button>
-        <button class="tab-btn"        id="tab-openings"  onclick="switchTab('openings')">Opening Trainer</button>
+    <!-- ── Puzzles ────────────────────────────────────────────── -->
+    <div id="pane-puzzles" style="padding:18px;display:flex;flex-direction:column;gap:18px;">
+      <div id="puzzles-loading" style="display:none;padding:20px 0;text-align:center;color:var(--text-dim);">
+        <span class="spinner"></span> Pulling positions from your recent games and asking Stockfish for the best moves…
       </div>
-
-      <!-- Puzzles tab -->
-      <div id="pane-puzzles" style="padding:16px;display:flex;flex-direction:column;gap:16px;">
-
-        <div id="puzzles-loading" style="display:none;padding:20px 0;text-align:center;color:var(--text-dim);">
-          <span class="spinner"></span> Generating puzzles tailored to your level…
-        </div>
-
-        <div id="puzzles-empty" style="padding:30px 0;text-align:center;color:var(--text-dim);font-style:italic;">
-          Enter your username above and click Load Practice to get started.
-        </div>
-
-        <div id="puzzles-list" style="display:flex;flex-direction:column;gap:14px;"></div>
-
+      <div id="puzzles-empty" style="padding:36px 0;text-align:center;color:var(--text-faint);font-style:italic;">
+        Enter your username above and click Load to build puzzles from your last few games.
       </div>
+      <div id="puzzles-list" style="display:flex;flex-direction:column;gap:18px;"></div>
+    </div>
 
-      <!-- Openings tab -->
-      <div id="pane-openings" style="padding:16px;display:none;flex-direction:column;gap:14px;">
+    <!-- ── Openings ───────────────────────────────────────────── -->
+    <div id="pane-openings" style="padding:18px;display:none;flex-direction:column;gap:14px;">
+      <div id="openings-loading" style="display:none;padding:20px 0;text-align:center;color:var(--text-dim);">
+        <span class="spinner"></span> Building opening lines from your saved preferences…
+      </div>
+      <div id="openings-empty" style="padding:36px 0;text-align:center;color:var(--text-faint);font-style:italic;">
+        Enter your username and click Load to see opening trees tailored to your preferred lines.
+      </div>
+      <div id="openings-list" style="display:flex;flex-direction:column;gap:14px;"></div>
 
-        <div id="openings-loading" style="display:none;padding:20px 0;text-align:center;color:var(--text-dim);">
-          <span class="spinner"></span> Building opening lines from your preferences…
-        </div>
-
-        <div id="openings-empty" style="padding:30px 0;text-align:center;color:var(--text-dim);font-style:italic;">
-          Enter your username above and click Load Practice to get started.
-        </div>
-
-        <div id="openings-list" style="display:flex;flex-direction:column;gap:14px;"></div>
-
-        <!-- Opening board viewer -->
-        <div id="opening-viewer" style="display:none;gap:20px;align-items:flex-start;flex-direction:row;">
-          <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
-            <div id="opening-board"></div>
-            <div id="opening-step-label" style="font-size:11px;color:var(--text-dim);font-family:monospace;min-height:16px;"></div>
-            <div style="display:flex;gap:6px;">
-              <button class="btn btn-secondary" style="padding:4px 12px;" id="op-prev" onclick="opPrev()">←</button>
-              <button class="btn btn-secondary" style="padding:4px 12px;" id="op-next" onclick="opNext()">→</button>
-            </div>
-          </div>
-          <div style="flex:1;">
-            <div id="opening-viewer-title" style="font-size:14px;font-weight:700;margin-bottom:8px;color:var(--coach-color);"></div>
-            <div id="opening-viewer-desc"  style="font-size:13px;line-height:1.6;color:var(--text-dim);margin-bottom:8px;"></div>
-            <div id="opening-viewer-ideas" style="font-size:13px;color:var(--coach-color);font-style:italic;"></div>
+      <div id="opening-viewer" style="display:none;gap:20px;align-items:flex-start;flex-direction:row;">
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+          <div id="opening-board"></div>
+          <div id="opening-step-label" style="font-size:11px;color:var(--text-dim);font-family:monospace;min-height:16px;"></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary" style="padding:4px 12px;" id="op-prev" onclick="opPrev()">←</button>
+            <button class="btn btn-secondary" style="padding:4px 12px;" id="op-next" onclick="opNext()">→</button>
           </div>
         </div>
-
+        <div style="flex:1;">
+          <div id="opening-viewer-title" style="font-size:14px;font-weight:700;margin-bottom:8px;color:var(--accent);"></div>
+          <div id="opening-viewer-desc"  style="font-size:13px;line-height:1.6;color:var(--text-dim);margin-bottom:8px;"></div>
+          <div id="opening-viewer-ideas" style="font-size:13px;color:var(--accent);font-style:italic;"></div>
+        </div>
       </div>
-
     </div>
   </div>
 
