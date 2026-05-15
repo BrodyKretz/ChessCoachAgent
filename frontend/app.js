@@ -5,6 +5,8 @@ let outputBlocks = {};
 let pdfPath = null;
 let currentQuestionId = null;
 let revisionCount = 0;
+let timerStart = null;
+let timerInterval = null;
 
 /* ── WebSocket ──────────────────────────────────────────────── */
 function startSession(e) {
@@ -30,6 +32,7 @@ function startSession(e) {
     setStatus('active', 'Session running');
     addDebug('▶', `Session started for ${username}${enableEngine ? ' (engine analysis on)' : ''}`);
     markEngineSkipped(!enableEngine);
+    startTimer();
   };
 
   ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
@@ -57,7 +60,7 @@ function handleMessage(msg) {
       pdfPath = msg.pdf_path;
       showComplete();
       break;
-    case 'error':    addDebug('✗', msg.message); setStatus('error', 'Error'); break;
+    case 'error':    addDebug('✗', msg.message); setStatus('error', 'Error'); stopTimer(); break;
   }
 }
 
@@ -225,6 +228,39 @@ function showComplete() {
   document.getElementById('complete-card').classList.add('visible');
   document.getElementById('interaction-header').textContent = 'Workbook Ready';
   addDebug('✓', 'Workbook saved to outputs/ folder.');
+  stopTimer();
+}
+
+/* ── Elapsed timer ──────────────────────────────────────────── */
+function startTimer() {
+  timerStart = Date.now();
+  const el = document.getElementById('elapsed');
+  if (el) el.classList.add('running');
+  renderElapsed();
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(renderElapsed, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  renderElapsed();
+  const el = document.getElementById('elapsed');
+  if (el) el.classList.remove('running');
+}
+
+function renderElapsed() {
+  const el = document.getElementById('elapsed');
+  if (!el || timerStart === null) return;
+  const total = Math.floor((Date.now() - timerStart) / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  el.textContent = h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}`;
 }
 
 function downloadPdf() {

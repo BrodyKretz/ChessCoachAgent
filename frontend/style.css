@@ -294,6 +294,23 @@ html, body {
   flex-shrink: 0;
 }
 
+.panel-header.with-meter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.elapsed {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+  opacity: 0.7;
+}
+
+.elapsed.running {
+  color: var(--text-faint);
+  opacity: 1;
+}
+
 /* ── Output panel ───────────────────────────────────────────── */
 #output-body {
   flex: 1;

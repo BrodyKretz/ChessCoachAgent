@@ -11,6 +11,7 @@ let currentMistake = null;
 let moveCount     = 0;
 let pendingMove   = null;   // {from, to} of the optimistically-applied move
 let prevBoardArr  = null;   // snapshot before optimistic update (for revert on invalid)
+let awaitingCoach = false;  // true between sending a move and receiving coach_move
 
 /* ── Init ──────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -64,6 +65,7 @@ function handleMsg(msg) {
       gameActive    = true;
       pendingMove   = null;
       prevBoardArr  = null;
+      awaitingCoach = playerColor === 'black';  // coach moves first if player is black
       setStatus(playerColor === 'white' ? 'Your turn — White to move' : 'Coach is thinking...');
       coachSay('Let\'s play! I\'m looking forward to our game.');
       break;
@@ -72,6 +74,7 @@ function handleMsg(msg) {
       mainBoard.setBoard(msg.board);
       mainBoard.highlightLastMove(msg.from, msg.to);
       legalMap = msg.legal_moves || {};
+      awaitingCoach = false;
       setStatus('Your turn');
       logMove(`Coach: ${msg.san}`);
       coachSay(`I played ${msg.san}.`);
@@ -103,7 +106,8 @@ function handleMsg(msg) {
         mainBoard.setBoard(prevBoardArr);
         prevBoardArr = null;
       }
-      pendingMove = null;
+      pendingMove   = null;
+      awaitingCoach = false;
       setStatus('Invalid move — try again');
       selectedSq = null;
       mainBoard.clearHighlights();
@@ -127,7 +131,7 @@ function handleMsg(msg) {
 
 /* ── Board interaction ─────────────────────────────────────── */
 function onSquareClick(sq) {
-  if (!gameActive) return;
+  if (!gameActive || awaitingCoach) return;
 
   if (selectedSq) {
     const from  = selectedSq;
@@ -146,6 +150,10 @@ function onSquareClick(sq) {
 
     mainBoard.applyUci(uci);
     setStatus('Coach is thinking...');
+
+    // Lock input until the coach replies so we can't queue extra moves
+    awaitingCoach = true;
+    legalMap = {};
 
     ws.send(JSON.stringify({ type: 'move', from, to: sq, promotion: promo }));
   } else {

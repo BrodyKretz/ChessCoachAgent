@@ -7,7 +7,7 @@ import chess
 import json
 import re
 from anthropic import AsyncAnthropic
-from utils.stockfish_engine import get_best_move, analyse_move
+from utils.stockfish_engine import get_best_move, analyse_move, open_engine, SKILL_MAP
 
 client = AsyncAnthropic()
 
@@ -171,103 +171,118 @@ async def run_game(websocket, config: dict):
     player_color = chess.WHITE if pc_str == "white" else chess.BLACK
     board        = chess.Board()
 
-    await websocket.send_json({
-        "type":         "game_started",
-        "board":        board_to_array(board),
-        "fen":          board.fen(),
-        "player_color": pc_str,
-        "legal_moves":  legal_moves_map(board),
-    })
+    # Long-lived Stockfish processes for the entire game.
+    # Two engines so analysis (skill 20) and play (chosen difficulty) can run concurrently.
+    play_engine     = await open_engine(skill=SKILL_MAP.get(difficulty, 8))
+    analysis_engine = await open_engine(skill=20)
 
-    if player_color == chess.BLACK:
-        mv = await get_best_move(board, difficulty)
-        san = board.san(mv)
-        board.push(mv)
+    try:
         await websocket.send_json({
-            "type":  "coach_move",
-            "san":   san,
-            "from":  chess.square_name(mv.from_square),
-            "to":    chess.square_name(mv.to_square),
-            "board": board_to_array(board),
-            "fen":   board.fen(),
-            "legal_moves": legal_moves_map(board),
+            "type":         "game_started",
+            "board":        board_to_array(board),
+            "fen":          board.fen(),
+            "player_color": pc_str,
+            "legal_moves":  legal_moves_map(board),
         })
 
-    while not board.is_game_over():
-        msg = await websocket.receive_json()
-
-        if msg.get("type") == "resign":
+        if player_color == chess.BLACK:
+            mv = await get_best_move(board, difficulty, engine=play_engine)
+            san = board.san(mv)
+            board.push(mv)
             await websocket.send_json({
-                "type": "game_over", "result": "resigned",
-                "board": board_to_array(board), "reason": "resignation",
+                "type":  "coach_move",
+                "san":   san,
+                "from":  chess.square_name(mv.from_square),
+                "to":    chess.square_name(mv.to_square),
+                "board": board_to_array(board),
+                "fen":   board.fen(),
+                "legal_moves": legal_moves_map(board),
             })
-            return
 
-        if msg.get("type") != "move":
-            continue
+        while not board.is_game_over():
+            msg = await websocket.receive_json()
 
-        try:
-            promo = msg.get("promotion")
-            mv = chess.Move(
-                chess.parse_square(msg["from"]),
-                chess.parse_square(msg["to"]),
-                promotion=chess.piece_type_from_symbol(promo.upper()) if promo else None,
+            if msg.get("type") == "resign":
+                await websocket.send_json({
+                    "type": "game_over", "result": "resigned",
+                    "board": board_to_array(board), "reason": "resignation",
+                })
+                return
+
+            if msg.get("type") != "move":
+                continue
+
+            try:
+                promo = msg.get("promotion")
+                mv = chess.Move(
+                    chess.parse_square(msg["from"]),
+                    chess.parse_square(msg["to"]),
+                    promotion=chess.piece_type_from_symbol(promo.upper()) if promo else None,
+                )
+            except Exception:
+                await websocket.send_json({"type": "invalid_move"})
+                continue
+
+            if mv not in board.legal_moves:
+                await websocket.send_json({"type": "invalid_move"})
+                continue
+
+            fen_before = board.fen()
+            san        = board.san(mv)
+            board.push(mv)
+
+            if board.is_game_over():
+                await websocket.send_json({
+                    "type": "game_over", "result": board.result(),
+                    "board": board_to_array(board), "reason": _end_reason(board),
+                })
+                return
+
+            # Confirm the player's move immediately — no waiting for Stockfish
+            await websocket.send_json({
+                "type":  "move_ok",
+                "san":   san,
+                "board": board_to_array(board),
+                "fen":   board.fen(),
+            })
+
+            # Run Stockfish for coach move + analysis concurrently on separate engines
+            analysis_raw, coach_mv = await asyncio.gather(
+                analyse_move(chess.Board(fen_before), mv, engine=analysis_engine),
+                get_best_move(board, difficulty, engine=play_engine),
             )
-        except Exception:
-            await websocket.send_json({"type": "invalid_move"})
-            continue
 
-        if mv not in board.legal_moves:
-            await websocket.send_json({"type": "invalid_move"})
-            continue
+            # Send mistake as a separate message so it doesn't block coach_move
+            mistake = await build_mistake_packet(fen_before, san, mv, analysis_raw, coaching)
+            if mistake:
+                await websocket.send_json({"type": "mistake", "mistake": mistake})
 
-        fen_before = board.fen()
-        san        = board.san(mv)
-        board.push(mv)
+            coach_san = board.san(coach_mv)
+            board.push(coach_mv)
 
-        if board.is_game_over():
             await websocket.send_json({
-                "type": "game_over", "result": board.result(),
-                "board": board_to_array(board), "reason": _end_reason(board),
+                "type":  "coach_move",
+                "san":   coach_san,
+                "from":  chess.square_name(coach_mv.from_square),
+                "to":    chess.square_name(coach_mv.to_square),
+                "board": board_to_array(board),
+                "fen":   board.fen(),
+                "legal_moves": legal_moves_map(board),
             })
-            return
-
-        # Confirm the player's move immediately — no waiting for Stockfish
-        await websocket.send_json({
-            "type":  "move_ok",
-            "san":   san,
-            "board": board_to_array(board),
-            "fen":   board.fen(),
-        })
-
-        # Now run Stockfish for coach move + analysis concurrently
-        analysis_raw, coach_mv = await asyncio.gather(
-            analyse_move(chess.Board(fen_before), mv),
-            get_best_move(board, difficulty),
-        )
-
-        # Send mistake as a separate message so it doesn't block coach_move
-        mistake = await build_mistake_packet(fen_before, san, mv, analysis_raw, coaching)
-        if mistake:
-            await websocket.send_json({"type": "mistake", "mistake": mistake})
-
-        coach_san = board.san(coach_mv)
-        board.push(coach_mv)
 
         await websocket.send_json({
-            "type":  "coach_move",
-            "san":   coach_san,
-            "from":  chess.square_name(coach_mv.from_square),
-            "to":    chess.square_name(coach_mv.to_square),
-            "board": board_to_array(board),
-            "fen":   board.fen(),
-            "legal_moves": legal_moves_map(board),
+            "type": "game_over", "result": board.result(),
+            "board": board_to_array(board), "reason": _end_reason(board),
         })
-
-    await websocket.send_json({
-        "type": "game_over", "result": board.result(),
-        "board": board_to_array(board), "reason": _end_reason(board),
-    })
+    finally:
+        try:
+            await play_engine.quit()
+        except Exception:
+            pass
+        try:
+            await analysis_engine.quit()
+        except Exception:
+            pass
 
 
 def _end_reason(b: chess.Board) -> str:

@@ -14,12 +14,25 @@ SKILL_MAP = {
     "expert": 20,
 }
 
-ANALYSIS_DEPTH = 18
+ANALYSIS_DEPTH = 12
 
 
 async def _open():
     """Open a fresh async Stockfish process."""
     _, engine = await chess.engine.popen_uci(STOCKFISH_PATH)
+    return engine
+
+
+async def open_engine(skill: int | None = None):
+    """Open a Stockfish process, optionally pre-configured with a skill level.
+
+    Use this when you want to reuse one engine across many calls (e.g. one
+    process per live game) instead of paying spawn overhead per move.
+    Caller is responsible for `await engine.quit()`.
+    """
+    engine = await _open()
+    if skill is not None:
+        await engine.configure({"Skill Level": skill})
     return engine
 
 
@@ -31,27 +44,37 @@ def _cp(score_obj, turn: chess.Color) -> int:
     return s.score()
 
 
-async def get_best_move(board: chess.Board, difficulty: str) -> chess.Move:
-    """Return Stockfish's move at the given skill level."""
-    engine = await _open()
-    try:
+async def get_best_move(board: chess.Board, difficulty: str, engine=None) -> chess.Move:
+    """Return Stockfish's move at the given skill level.
+
+    If `engine` is provided, reuse it (caller manages skill config and lifecycle).
+    Otherwise a one-shot process is spawned and closed.
+    """
+    own = engine is None
+    if own:
+        engine = await _open()
         await engine.configure({"Skill Level": SKILL_MAP.get(difficulty, 8)})
+    try:
         result = await engine.play(board, chess.engine.Limit(time=0.5))
         return result.move
     finally:
-        await engine.quit()
+        if own:
+            await engine.quit()
 
 
 async def analyse_move(board_before: chess.Board, move: chess.Move,
-                       depth: int = ANALYSIS_DEPTH) -> dict:
+                       depth: int = ANALYSIS_DEPTH, engine=None) -> dict:
     """
     Analyse a player's move against Stockfish's best.
     Returns: best_move, best_san, cp_loss, quality.
-    """
-    engine = await _open()
-    try:
-        await engine.configure({"Skill Level": 20})
 
+    If `engine` is provided, reuse it (caller manages skill config + lifecycle).
+    """
+    own = engine is None
+    if own:
+        engine = await _open()
+        await engine.configure({"Skill Level": 20})
+    try:
         # Best move + eval in one analyse call (pv[0] == best move)
         info_before = await engine.analyse(
             board_before,
@@ -81,7 +104,8 @@ async def analyse_move(board_before: chess.Board, move: chess.Move,
             "quality":     quality,
         }
     finally:
-        await engine.quit()
+        if own:
+            await engine.quit()
 
 
 async def batch_analyse_game(positions: list, depth: int = 12) -> list:
