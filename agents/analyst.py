@@ -28,7 +28,7 @@ def analyze_games_node(state: ChessCoachState) -> dict:
 
 {games_text}
 
-Legend: ⏰ = move made under severe time pressure (<30 seconds remaining on clock).
+Legend:  = move made under severe time pressure (<30 seconds remaining on clock).
 
 Provide a structured analysis with these exact sections:
 
@@ -44,8 +44,8 @@ move numbers or game patterns, not generic advice.
 How does the player handle endgames? Technique issues, premature trades, etc.
 
 ## Time Management
-Were time-pressured moves (⏰) frequent? Did time pressure correlate with mistakes?
-Estimate whether errors on ⏰ moves were time-caused or would be errors at any speed.
+Were time-pressured moves frequent? Did time pressure correlate with mistakes?
+Estimate whether errors on moves were time-caused or would be errors at any speed.
 
 ## Top 3 Priority Areas
 Rank the 3 most impactful areas to improve, with a one-sentence reason each.
