@@ -164,7 +164,7 @@ RULES:
 - Every section must reference their actual game patterns — no generic advice.
 - For every major principle or lesson, cite a real chess reference: e.g. "As Nimzowitsch explains in My System...", "Silman's How to Reassess Your Chess calls this...", "Capablanca's Chess Fundamentals warns against...". Use real authors and real book titles only.
 - Approved references: My System (Nimzowitsch), Chess Fundamentals (Capablanca), How to Reassess Your Chess (Silman), The Amateur's Mind (Silman), Silman's Complete Endgame Course, Logical Chess: Move by Move (Chernev), Zurich 1953 (Bronstein), Winning Chess Tactics (Seirawan), Dvoretsky's Endgame Manual, Think Like a Grandmaster (Kotov).
-- Mistakes made under ⏰ time pressure: note briefly, do not prioritize.
+- Mistakes made under  time pressure: note briefly, do not prioritize.
 - Write as Coach King — warm, encouraging, mentor-like."""
 
     full_response = ""
