@@ -120,11 +120,11 @@ Client sends move → WebSocket → api/routes/play.py
 
 **Role:** Identify patterns across all analyzed games — not a move-by-move critique of one game, but recurring themes.
 
-**Input:** List of parsed game summaries (opening played, move string with ⏰ time-pressure markers, result)
+**Input:** List of parsed game summaries (opening played, move string with time-pressure markers, result)
 
 **Output:** Structured report covering opening patterns, middlegame mistakes, endgame technique, time management, and the top 3 priority areas.
 
-**Key design decision:** The Analyst is given the full move string for each game with `⏰` markers on moves made under severe time pressure. This allows Claude to distinguish errors caused by time scrambles from strategic misunderstandings, which the Coach later uses to prioritize advice.
+**Key design decision:** The Analyst is given the full move string for each game with markers on moves made under severe time pressure. This allows Claude to distinguish errors caused by time scrambles from strategic misunderstandings, which the Coach later uses to prioritize advice.
 
 ---
 
